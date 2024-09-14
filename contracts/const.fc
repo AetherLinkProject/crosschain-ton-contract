@@ -1,0 +1,23 @@
+
+;; declare const op code
+int op::UpsertWhiteContractAddress() asm "0x00000001 PUSHINT";
+int op::UpsertWhiteOracleAddress() asm "0x00000002 PUSHINT";
+int op::ProxyTransactionToTon() asm "0x00000003 PUSHINT";
+int op::ProxyTransactionToOtherChain() asm "0x00000004 PUSHINT";
+int op::Withdraw() asm "0x00000005 PUSHINT";
+int op::UpdateOracleNodeCount() asm "0x00000006 PUSHINT";
+
+;; declare op of inliner contract
+int OracleNodeOp::Upsert() asm "0x01 PUSHINT";
+int OracleNodeOp::Delete() asm "0x02 PUSHINT";
+
+;; declare error code
+const rsp::NotOwner = 100;
+const rsp::PermissionDenied = 101;
+const rsp::NotInWhiteList = 102;
+const rsp::BalanceNotEnough = 103;
+const rsp::FeeToLow = 104;
+const rsp::InputDataError = 105;
+const rsp::SignerNotEnough = 106;
+const rsp::SignatureError = 107;
+const rsp::OperateNotMatch = 108;
