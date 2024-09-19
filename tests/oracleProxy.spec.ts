@@ -143,8 +143,10 @@ describe('oracleProxy', () => {
             .storeUint(6, 32)
             .endCell()
 
-        let unsign_data = assemble_unsign_data(OracleProxyOpcodes.ProxyAelfToTon, logicTest.address, sendData);
+        let messageId = BigInt(10);
+        let unsign_data = assemble_unsign_data(messageId, logicTest.address, sendData);
         let hash = unsign_data.hash();
+
 
         let signDic = Dictionary.empty<bigint, Cell>(Dictionary.Keys.BigInt(256), Dictionary.Values.Cell());
         for(var i = 0; i < keyPairList.length ; i++){
@@ -153,7 +155,7 @@ describe('oracleProxy', () => {
             signDic.set(BigInt(i), data);
         }
 
-        await oracleProxy.sendToTonContract(deployer.getSender(),{contractAddress: logicTest.address, data:sendData, hash, multiSign:signDic ,amount:toNano('0.05') });
+        await oracleProxy.sendToTonContract(deployer.getSender(),{contractAddress: logicTest.address, data:sendData, messageId, multiSign:signDic ,amount:toNano('0.05') });
 
         let counterResult = await logicTest.getCounter();
         expect(counterResult).toEqual(17);
@@ -216,11 +218,11 @@ async function addWhiteWalletAddress(oracleProxy:SandboxContract<OracleProxy>, s
     }
 }
 
-function assemble_unsign_data(op:number, contractAddress:Address, data:Cell){
+function assemble_unsign_data(messageId:bigint, contractAddress:Address, data:Cell){
     let unSignCell = beginCell()
-        .storeInt(op, 32)
+        .storeInt(messageId, 256)
         .storeAddress(contractAddress)
-        .storeSlice(data.beginParse())
+        .storeRef(data)
         .endCell();
 
     return unSignCell;

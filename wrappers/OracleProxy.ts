@@ -114,18 +114,18 @@ export class OracleProxy implements Contract {
         provider: ContractProvider,
         via: Sender,
         opts: {
+            messageId: bigint,
             contractAddress: Address;
             data: Cell;
-            hash: Buffer;
             multiSign: Dictionary<bigint, Cell>,
             amount: bigint;
         }
     ) {
         let body = beginCell()
             .storeUint(OracleProxyOpcodes.ProxyAelfToTon,32)
+            .storeInt(opts.messageId, 256)
             .storeAddress(opts.contractAddress)
             .storeRef(opts.data)
-            .storeRef(new Builder().storeBuffer(opts.hash))
             .storeRef(new Builder().storeDict<bigint, Cell>(opts.multiSign).endCell())
             .endCell();
         await provider.internal(via, {
