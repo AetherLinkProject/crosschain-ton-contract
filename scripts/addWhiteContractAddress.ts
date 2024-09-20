@@ -8,6 +8,8 @@ export async function run(provider:NetworkProvider){
     let codeCell = await compile('OracleProxy');
     const oracleProxy = provider.open(OracleProxy.createFromConfig({
             oracleNodeCount:BigInt(7),
+            epochId:BigInt(0),
+            fee: BigInt(1000000),
             owner: provider.sender().address!,
             whiteWalletAddress: whiteWalletAddressDic,
             whiteContractAddress: Dictionary.empty<bigint, Slice>(),

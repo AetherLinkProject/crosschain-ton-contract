@@ -9,11 +9,12 @@ import {
     SendMode,
 } from '@ton/core';
 import {} from "qrcode-terminal";
-import {bo} from "@aptos-labs/ts-sdk/dist/common/accountAddress-LOYE4_sG";
-
+import {bi, bo} from "@aptos-labs/ts-sdk/dist/common/accountAddress-LOYE4_sG";
 
 export type OracleProxyConfig = {
     oracleNodeCount: bigint;
+    epochId: bigint;
+    fee: bigint;
     owner: Address;
     whiteWalletAddress: Dictionary<any, any>;
     whiteContractAddress: Dictionary<any, any>;
@@ -21,12 +22,18 @@ export type OracleProxyConfig = {
 };
 
 export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
-    return beginCell()
+    let commonInfo = beginCell()
         .storeInt(config.oracleNodeCount, 32)
+        .storeInt(config.epochId, 64)
+        .storeInt(config.fee, 32)
         .storeAddress(config.owner)
+        .endCell();
+    return beginCell()
+        .storeRef(commonInfo)
         .storeDict(config.whiteWalletAddress)
         .storeDict(config.whiteContractAddress)
-        .storeDict(config.publicKeyDic).endCell();
+        .storeDict(config.publicKeyDic)
+        .endCell();
 }
 
 export const OracleProxyOpcodes = {
@@ -36,6 +43,7 @@ export const OracleProxyOpcodes = {
     ProxyTonToAelf:4,
     Withdraw:5,
     UpdateOracleNodeCount:6,
+    SetFee:7,
 };
 
 export type ContractInit = {
@@ -171,6 +179,23 @@ export class OracleProxy implements Contract {
         });
     }
 
+    async sendSetFee(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            transactionFee: bigint;
+            fee:bigint;
+        }){
+        await provider.internal(via, {
+            value: opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.SetFee,32)
+                .storeUint(opts.transactionFee, 32)
+                .endCell(),
+        });
+    }
+
     async getBalance(provider: ContractProvider, via: Sender){
         let result = await provider.get("get_resume_balance",[]);
         return result.stack.readBigNumber();
@@ -189,6 +214,11 @@ export class OracleProxy implements Contract {
 
     async getOracleNode(provider:ContractProvider){
         let result = await provider.get('get_oracle_node_count', []);
+        return result.stack.readBigNumber();
+    }
+
+    async getFee(provider:ContractProvider){
+        let result = await provider.get('get_current_fee', []);
         return result.stack.readBigNumber();
     }
 }

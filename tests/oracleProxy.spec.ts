@@ -48,6 +48,8 @@ describe('oracleProxy', () => {
             OracleProxy.createFromConfig(
                 {
                     oracleNodeCount:BigInt(7),
+                    epochId:BigInt(0),
+                    fee: BigInt(1000000),
                     owner: deployer.getSender().address,
                     whiteWalletAddress: Dictionary.empty<bigint, Slice>(),
                     whiteContractAddress:Dictionary.empty<bigint, Slice>(),
@@ -181,6 +183,18 @@ describe('oracleProxy', () => {
 
         let oracleCount = await  oracleProxy.getOracleNode();
         expect(oracleCount).toEqual(oracleCountNum);
+    });
+
+    it("set transaction fee", async ()=>{
+        let transactionFee = BigInt( 2000000);
+        let result = await oracleProxy.sendSetFee(deployer.getSender(),{transactionFee:transactionFee, fee: toNano("0.01")});
+        expect(result.transactions).toHaveTransaction({
+            success:true,
+            aborted:false,
+        });
+
+        let newFee = await oracleProxy.getFee();
+        expect(newFee).toEqual(transactionFee);
     });
 });
 
