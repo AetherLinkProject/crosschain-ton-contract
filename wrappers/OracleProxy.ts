@@ -9,7 +9,6 @@ import {
     SendMode,
 } from '@ton/core';
 import {} from "qrcode-terminal";
-import {bi, bo} from "@aptos-labs/ts-sdk/dist/common/accountAddress-LOYE4_sG";
 
 export type OracleProxyConfig = {
     oracleNodeCount: bigint;

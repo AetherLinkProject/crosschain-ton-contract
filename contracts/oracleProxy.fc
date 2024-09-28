@@ -95,7 +95,6 @@
 
     int messageId = in_msg_body~load_int(256);
     slice addr = in_msg_body~load_msg_addr();
-    ;; throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, addr));
 
     cell body = in_msg_body~load_ref();
     slice bodySlice = body.begin_parse();
@@ -108,14 +107,19 @@
 
     validate_multi_sign(oracleNodeCount, publicKeyDic, originalHash,in_msg_body);
 
+    cell proxyBody = begin_cell()
+        .store_int(messageId, 256)
+        .store_ref(body)
+        .end_cell();
+
     int gas_fee = 10000000;
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(addr)
         .store_coins(gas_fee)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        ;; .store_uint(0, 32)
-        .store_slice(bodySlice)
+        .store_uint(op::ProxyTransactionToTon(), 32)
+        .store_slice(proxyBody.begin_parse())
         .end_cell();
 
     send_raw_message(msg, 1);
