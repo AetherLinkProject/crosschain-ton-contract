@@ -71,8 +71,7 @@
     while(flag){
         ;; get public key
         (slice publicKeySlice, _) = publicKeyDic.udict_get?(256,publickIndex);
-        throw_unless(rsp::NotInWhiteList, ~ publicKeySlice.slice_empty?());
-
+        throw_unless(rsp::NotInWhiteList, ~ publicKeySlice.null?());
         int publicKey = publicKeySlice~load_uint(256);
         slice signature = signatureRef~load_ref().begin_parse();
 
