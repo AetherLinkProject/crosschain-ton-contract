@@ -8,6 +8,8 @@ export async function run(provider:NetworkProvider){
     let codeCell = await compile('OracleProxy');
     const oracleProxy =provider.open(OracleProxy.createFromConfig({
             oracleNodeCount:BigInt(7),
+            epochId:BigInt(0),
+            fee: BigInt(1000000),
             owner: provider.sender().address!,
             whiteWalletAddress: whiteWalletAddressDic,
             whiteContractAddress: Dictionary.empty<bigint, Slice>(),
@@ -17,7 +19,7 @@ export async function run(provider:NetworkProvider){
         codeCell
     ));
 
-    let whiteOracleAddressListStr = process.env.WHITE_WALLET_ADDRESS;
+    let whiteOracleAddressListStr = process.env.WHITE_ORACLE_ADDRESS;
     if(whiteOracleAddressListStr== undefined || whiteOracleAddressListStr=== ""){
         console.log("Not set WHITE_ORACLE_ADDRESS data in env");
         return;
@@ -41,10 +43,10 @@ export async function run(provider:NetworkProvider){
         }
 
         await oracleProxy.sendUpsertWhiteOracleAddress(provider.sender(), { whiteOracleAddress:oracleAddress, ifDelete:false, publicIndex:oracleIndex, publicKey:publicKey , amount:toNano("0.01")});
-        flag = await oracleProxy.getWhiteWalletAddress(oracleAddress);
-        if(flag !== BigInt(-1)){
-            console.log(`set white wallet address: ${oracleAddress} success!`);
-            return;
-        }
+        // flag = await oracleProxy.getWhiteWalletAddress(oracleAddress);
+        // if(flag !== BigInt(-1)){
+        //     console.log(`set white wallet address: ${oracleAddress} success!`);
+        //     return;
+        // }
     }
 }

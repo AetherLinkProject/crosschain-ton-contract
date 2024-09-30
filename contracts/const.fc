@@ -6,6 +6,11 @@ int op::ProxyTransactionToTon() asm "0x00000003 PUSHINT";
 int op::ProxyTransactionToOtherChain() asm "0x00000004 PUSHINT";
 int op::Withdraw() asm "0x00000005 PUSHINT";
 int op::UpdateOracleNodeCount() asm "0x00000006 PUSHINT";
+int op:UpdateFee() asm "0x00000007 PUSHINT";
+int op::ResendTx() asm "0x00000009 PUSHINT";
+
+;; declare resend type;
+int resend::AppointTime() asm "0x01 PUSHINT";
 
 ;; declare op of inliner contract
 int OracleNodeOp::Upsert() asm "0x01 PUSHINT";

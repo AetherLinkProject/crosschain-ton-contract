@@ -93,7 +93,7 @@ describe('oracleProxy', () => {
             .storeUint(0, 64)
             .storeUint(6, 32)
             .endCell();
-        var result = await oracleProxy.sendToTonContract(deployer.getSender(), { contractAddress: logicTest.address, data: sendData, amount: (0, core_1.toNano)('0.05') });
+        var result = await oracleProxy.sendToTonContract(deployer.getSender(), {messageId: BigInt(10) ,contractAddress: logicTest.address, data: sendData, amount: (0, core_1.toNano)('0.05') });
         // expect(result.transactions).toHaveBeenCalled();
         let counterResult = await logicTest.getCounter();
         expect(counterResult == 100);
