@@ -61,7 +61,7 @@
     return -1;
 }
 
-() validate_multi_sign(int oracleNodeCount,cell publicKeyDic, int hash,  slice input_body) impure inline_ref {
+() validate_multi_sign(int oracleNodeCount, cell publicKeyDic, int hash,  slice input_body) impure inline_ref {
     cell signDataDic = input_body~load_ref();
     slice signDicSlice = signDataDic.begin_parse();
     cell signDic = signDicSlice~load_dict();
@@ -72,6 +72,7 @@
         ;; get public key
         (slice publicKeySlice, _) = publicKeyDic.udict_get?(256,publickIndex);
         throw_unless(rsp::NotInWhiteList, ~ publicKeySlice.null?());
+
         int publicKey = publicKeySlice~load_uint(256);
         slice signature = signatureRef~load_ref().begin_parse();
 
@@ -96,7 +97,6 @@
     slice addr = in_msg_body~load_msg_addr();
 
     cell body = in_msg_body~load_ref();
-    slice bodySlice = body.begin_parse();
 
     int originalHash = begin_cell().store_int(messageId,256)
         .store_slice(addr)
