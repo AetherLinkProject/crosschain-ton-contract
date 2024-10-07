@@ -163,6 +163,15 @@ describe('oracleProxy', () => {
         expect(counterResult).toEqual(17);
     });
 
+    it("proxy ton message", async()=>{
+        await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
+
+        var receiver = beginCell().storeAddress(oracleProxy.address).endCell();
+        var report = beginCell().storeBuffer(Buffer.from("0x010101","hex")).endCell();
+        var result = await logicTest.sendCrossChainMessage(deployer.getSender(),{proxyAddr:oracleProxy.address, chainId:12, receiver:receiver.beginParse(), fee:toNano("0.2"), report:report.beginParse()});
+        console.log(result);
+    });
+
     it("withdraw", async()=> {
         let beforeAmount = await oracleProxy.getBalance(deployer.getSender());
         let fees = toNano("0.01");

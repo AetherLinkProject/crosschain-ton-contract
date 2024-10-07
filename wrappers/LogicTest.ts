@@ -1,4 +1,15 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core';
+import {
+    Address,
+    beginCell,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    Sender,
+    SendMode,
+    Slice
+} from '@ton/core';
+import {OracleProxyOpcodes} from "./OracleProxy";
 
 export type MainConfig = {
     id: number;
@@ -52,6 +63,29 @@ export class LogicTest implements Contract {
                 .storeUint(opts.increaseBy, 32)
                 .endCell(),
         });
+    }
+
+    async sendCrossChainMessage(provider: ContractProvider,
+        via: Sender,
+        opts: {
+            proxyAddr:Address,
+            chainId: number;
+            receiver: Slice;
+            report: Slice;
+            fee:bigint,
+        }){
+        await provider.internal(via,{
+            value:opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.ProxyTonToAelf, 32)
+                .storeAddress(opts.proxyAddr)
+                .storeUint(opts.chainId, 64)
+                .storeRef(opts.receiver.asCell())
+                .storeRef(opts.report.asCell())
+                .endCell(),
+        })
+
     }
 
     async getCounter(provider: ContractProvider) {
