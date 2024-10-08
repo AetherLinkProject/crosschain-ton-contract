@@ -1,4 +1,4 @@
-import {compile, NetworkProvider} from "@ton/blueprint";
+import {compile, NetworkProvider, sleep} from "@ton/blueprint";
 import {Address, address, Dictionary, Slice, toNano} from "@ton/core";
 import {OracleProxy} from "../wrappers/OracleProxy";
 
@@ -35,10 +35,10 @@ export async function run(provider:NetworkProvider){
         }
 
         await oracleProxy.sendUpsertWhiteContractAddress(provider.sender(), { whiteContractAddress:whiteAddress , amount:toNano("0.01")});
-        flag = await oracleProxy.getContractWalletAddress(whiteAddress);
-        if(flag === BigInt(-1)){
-            console.log(`set white contract address: ${whiteAddress} success!`);
-            return;
-        }
+
+        console.log(`wait commit ton contract address: ${whiteAddress}`);
+        await sleep(4 * 1000);
     }
+
+    console.log(`add white contract address finish`);
 }

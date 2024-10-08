@@ -1,4 +1,4 @@
-import {compile, NetworkProvider} from "@ton/blueprint";
+import {compile, NetworkProvider, sleep} from "@ton/blueprint";
 import {Address, address, Dictionary, Slice, toNano} from "@ton/core";
 import {OracleProxy} from "../wrappers/OracleProxy";
 
@@ -6,7 +6,7 @@ export async function run(provider:NetworkProvider){
     let whiteWalletAddressDic = Dictionary.empty<bigint, Slice>();
 
     let codeCell = await compile('OracleProxy');
-    const oracleProxy =provider.open(OracleProxy.createFromConfig({
+    const oracleProxy = provider.open(OracleProxy.createFromConfig({
             oracleNodeCount:BigInt(7),
             epochId:BigInt(0),
             fee: BigInt(1000000),
@@ -43,10 +43,10 @@ export async function run(provider:NetworkProvider){
         }
 
         await oracleProxy.sendUpsertWhiteOracleAddress(provider.sender(), { whiteOracleAddress:oracleAddress, ifDelete:false, publicIndex:oracleIndex, publicKey:publicKey , amount:toNano("0.01")});
-        // flag = await oracleProxy.getWhiteWalletAddress(oracleAddress);
-        // if(flag !== BigInt(-1)){
-        //     console.log(`set white wallet address: ${oracleAddress} success!`);
-        //     return;
-        // }
+
+        console.log(`wait commit oracle address: ${oracleAddress}`);
+        await sleep(4 * 1000);
     }
+
+    console.log(`add white oracle address finish`);
 }
