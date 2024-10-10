@@ -65,6 +65,26 @@ export class LogicTest implements Contract {
         });
     }
 
+    async sendResendMessage(provider: ContractProvider,
+                            via: Sender,
+                            opts: {
+                                proxyAddr:Address,
+                                messageId: bigint;
+                                delayTime: number;
+                                fee:bigint,
+                            }){
+        await provider.internal(via, {
+            value:opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.ResendTx, 32)
+                .storeAddress(opts.proxyAddr)
+                .storeInt(opts.messageId, 256)
+                .storeInt(opts.delayTime, 32)
+                .endCell()
+        });
+    }
+
     async sendCrossChainMessage(provider: ContractProvider,
         via: Sender,
         opts: {

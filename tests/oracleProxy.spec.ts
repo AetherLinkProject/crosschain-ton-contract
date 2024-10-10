@@ -165,11 +165,25 @@ describe('oracleProxy', () => {
 
     it("proxy ton message", async()=>{
         await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
+        await addWhiteContractAddress(oracleProxy, deployer.getSender(), oracleProxy.address);
 
         var receiver = beginCell().storeAddress(oracleProxy.address).endCell();
         var report = beginCell().storeBuffer(Buffer.from("0x010101","hex")).endCell();
-        var result = await logicTest.sendCrossChainMessage(deployer.getSender(),{proxyAddr:oracleProxy.address, chainId:12, receiver:receiver.beginParse(), fee:toNano("0.2"), report:report.beginParse()});
+        var result = await oracleProxy.sendCrossChainMessage(deployer.getSender(),{proxyAddr:oracleProxy.address, chainId:12, receiver:receiver.beginParse(), fee:toNano("0.2"), report:report.beginParse()});
         console.log(result);
+    });
+
+    it("resend", async()=>{
+        await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
+        var result = await logicTest.sendResendMessage(deployer.getSender(),{proxyAddr:oracleProxy.address, messageId: BigInt(12), delayTime:12,  fee:toNano("0.2"), });
+        console.log(result);
+    });
+
+    it("sendCode", async()=>{
+        await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
+        var sendCodeResult = await oracleProxy.sendSetCode(deployer.getSender(),{fee:toNano("0.2"), code: logicTestCode});
+        var code = await oracleProxy.sendResendMessage(deployer.getSender(),{proxyAddr:oracleProxy.address, messageId: BigInt(12), delayTime:12,  fee:toNano("0.2"), });
+        console.log(sendCodeResult);
     });
 
     it("withdraw", async()=> {

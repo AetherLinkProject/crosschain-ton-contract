@@ -54,6 +54,29 @@ global int ctx_counter;
         return ();
     }
 
+    if(op == op::ResendTx()){
+        slice proxyAddr = in_msg_body~load_msg_addr();
+        int messageId = in_msg_body~load_int(256);
+        int delayTime = in_msg_body~load_int(32);
+
+        cell bodyCell = begin_cell().store_int(messageId,256)
+                                    .store_int(1,8)
+                                    .store_int(delayTime,32)
+                                    .end_cell();
+
+        cell msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(proxyAddr)
+            .store_coins(15000000)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::ResendTx(), 32)
+            .store_slice(bodyCell.begin_parse())
+            .end_cell();
+
+        send_raw_message(msg, 1);
+        return ();
+    }
+
     if(op == op::ProxyTransactionToOtherChain()){
         slice proxyAddr = in_msg_body~load_msg_addr();
         int targetChainId = in_msg_body~load_uint(64);

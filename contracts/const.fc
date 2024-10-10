@@ -7,6 +7,7 @@ int op::ProxyTransactionToOtherChain() asm "0x00000004 PUSHINT";
 int op::Withdraw() asm "0x00000005 PUSHINT";
 int op::UpdateOracleNodeCount() asm "0x00000006 PUSHINT";
 int op:UpdateFee() asm "0x00000007 PUSHINT";
+int op::UpdateCode() asm "0x00000008 PUSHINT";
 int op::ResendTx() asm "0x00000009 PUSHINT";
 
 ;; declare resend type;

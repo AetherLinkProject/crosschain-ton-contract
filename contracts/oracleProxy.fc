@@ -125,7 +125,7 @@
 }
 
 () receive_message(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic,slice sender,  slice in_msg_body) impure inline {
-    throw_unless(rsp::PermissionDenied, ~ equal_slices(owner,sender));
+    ;; throw_unless(rsp::PermissionDenied, ~ equal_slices(owner,sender));
 
     throw_unless(rsp::NotInWhiteList, check_address_in_dic(whiteContractAddress, sender));
 
@@ -140,7 +140,8 @@
 
     cell argsCell = in_msg_body~load_ref();
 
-    cell msgBody = begin_cell().store_int(epochId,64)
+    cell msgBody = begin_cell()
+                    .store_int(epochId,64)
                     .store_int(targetChainId,64)
                     .store_ref(targetContractCell)
                     .store_slice(sender)
@@ -149,7 +150,8 @@
 
     cell msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_coins(0)
+        .store_slice(my_address())
+        .store_coins(1000000)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         .store_slice(msgBody.begin_parse())
         .end_cell();
@@ -259,7 +261,7 @@
     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime());
 
     int maxDelaySeconds = 60 * 60 * 24;
-    throw_unless(rsp::InputDataError, maxDelaySeconds < in_msg_body~load_int(32));
+    throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
 }
 
 () update_fee(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline {
@@ -273,6 +275,12 @@
     throw_unless(rsp::InputDataError, latest > 0);
 
     save_data(oracleNodeCount, epochId, latest, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic);
+}
+
+() update_contract_code(slice owner,slice sender,  slice in_msg_body) impure {
+    throw_unless(rsp::NotOwner, equal_slices(owner,sender));
+    cell code = in_msg_body~load_ref();
+    set_code(code);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -328,6 +336,11 @@
 
     if(op == op::UpdateOracleNodeCount()){
         update_oracle_node_count(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
+        return ();
+    }
+
+    if(op == op::UpdateCode()){
+        update_contract_code(owner, sender, in_msg_body);
         return ();
     }
 

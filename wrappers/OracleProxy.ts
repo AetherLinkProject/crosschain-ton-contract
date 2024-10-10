@@ -6,7 +6,7 @@ import {
     contractAddress,
     ContractProvider, Dictionary,
     Sender,
-    SendMode,
+    SendMode, Slice,
 } from '@ton/core';
 import {} from "qrcode-terminal";
 
@@ -43,6 +43,8 @@ export const OracleProxyOpcodes = {
     Withdraw:5,
     UpdateOracleNodeCount:6,
     SetFee:7,
+    SetCode:8,
+    ResendTx:9,
 };
 
 export type ContractInit = {
@@ -117,6 +119,28 @@ export class OracleProxy implements Contract {
         });
     }
 
+    async sendCrossChainMessage(provider: ContractProvider,
+                                via: Sender,
+                                opts: {
+                                    proxyAddr:Address,
+                                    chainId: number;
+                                    receiver: Slice;
+                                    report: Slice;
+                                    fee:bigint,
+                                }){
+        await provider.internal(via,{
+            value:opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.ProxyTonToAelf, 32)
+                .storeAddress(opts.proxyAddr)
+                .storeUint(opts.chainId, 64)
+                .storeRef(opts.receiver.asCell())
+                .storeRef(opts.report.asCell())
+                .endCell(),
+        })
+
+    }
     async sendToTonContract(
         provider: ContractProvider,
         via: Sender,
@@ -195,6 +219,43 @@ export class OracleProxy implements Contract {
         });
     }
 
+    async sendSetCode(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            fee: bigint;
+            code:Cell;
+        }){
+        await  provider.internal(via,{
+            value: opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.SetCode,32)
+                .storeRef(opts.code)
+                .endCell(),
+        })
+    }
+
+    // only for set code Test
+    async sendResendMessage(provider: ContractProvider,
+                            via: Sender,
+                            opts: {
+                                proxyAddr:Address,
+                                messageId: bigint;
+                                delayTime: number;
+                                fee:bigint,
+                            }){
+        await provider.internal(via, {
+            value:opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.ResendTx, 32)
+                .storeAddress(opts.proxyAddr)
+                .storeInt(opts.messageId, 256)
+                .storeInt(opts.delayTime, 32)
+                .endCell()
+        });
+    }
     async getBalance(provider: ContractProvider, via: Sender){
         let result = await provider.get("get_resume_balance",[]);
         return result.stack.readBigNumber();
