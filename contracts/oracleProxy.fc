@@ -27,11 +27,11 @@
     return (oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic);
 }
 
-() save_data(int oracleNodeCount, int epochId, int fee ,slice owner, cell whiteOracleAddress,cell whiteContractAddress, cell publicKeyDic) impure inline_ref {
+() save_data(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic) impure inline_ref {
     cell commonInfo = begin_cell()
         .store_uint(oracleNodeCount, 32)
-        .store_uint(epochId,64)
-        .store_uint(fee,32)
+        .store_uint(epochId, 64)
+        .store_uint(fee, 32)
         .store_slice(owner)
         .end_cell();
 
@@ -44,33 +44,33 @@
 }
 
 (int) check_address_in_dic(cell dic, slice address) inline_ref {
-    if(dic.null?()){
+    if (dic.null?()) {
         return 0;
     }
 
-    if(dic.dict_empty?()){
+    if (dic.dict_empty?()) {
         return 0;
     }
 
     int hash = address.slice_hash();
-    (slice data, _) = dic.udict_get?(256,hash);
-    if(data.null?()){
+    (slice data, _) = dic.udict_get?(256, hash);
+    if (data.null?()) {
         return 0;
     }
 
     return -1;
 }
 
-() validate_multi_sign(int oracleNodeCount, cell publicKeyDic, int hash,  slice input_body) impure inline_ref {
+() validate_multi_sign(int oracleNodeCount, cell publicKeyDic, int hash, slice input_body) impure inline_ref {
     cell signDataDic = input_body~load_ref();
     slice signDicSlice = signDataDic.begin_parse();
     cell signDic = signDicSlice~load_dict();
     (int publickIndex, slice signatureRef, int flag) = signDic.udict_get_min?(256);
     int signCount = 0;
 
-    while(flag){
+    while (flag) {
         ;; get public key
-        (slice publicKeySlice, _) = publicKeyDic.udict_get?(256,publickIndex);
+        (slice publicKeySlice, _) = publicKeyDic.udict_get?(256, publickIndex);
         throw_unless(rsp::NotInWhiteList, ~ publicKeySlice.null?());
 
         int publicKey = publicKeySlice~load_uint(256);
@@ -89,22 +89,25 @@
     throw_unless(rsp::SignerNotEnough, signCount >= leastSignerCount);
 }
 
-() forward_message(int oracleNodeCount, cell whiteOracleAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline_ref {
+() forward_message(int oracleNodeCount, cell whiteOracleAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline_ref {
     ;; check
     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteOracleAddress, sender));
 
     int messageId = in_msg_body~load_int(256);
     slice addr = in_msg_body~load_msg_addr();
 
+    ;; limit reentrancy
+    throw_unless(rsp::InputDataError, ~ equal_slices(addr, my_address()));
+
     cell body = in_msg_body~load_ref();
 
-    int originalHash = begin_cell().store_int(messageId,256)
+    int originalHash = begin_cell().store_int(messageId, 256)
         .store_slice(addr)
         .store_ref(body)
         .end_cell()
         .cell_hash();
 
-    validate_multi_sign(oracleNodeCount, publicKeyDic, originalHash,in_msg_body);
+    validate_multi_sign(oracleNodeCount, publicKeyDic, originalHash, in_msg_body);
 
     cell proxyBody = begin_cell()
         .store_int(messageId, 256)
@@ -124,7 +127,7 @@
     send_raw_message(msg, 1);
 }
 
-() receive_message(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic,slice sender,  slice in_msg_body) impure inline {
+() receive_message(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
     ;; throw_unless(rsp::PermissionDenied, ~ equal_slices(owner,sender));
 
     throw_unless(rsp::NotInWhiteList, check_address_in_dic(whiteContractAddress, sender));
@@ -136,17 +139,17 @@
     ;; target chain id
     int targetChainId = in_msg_body~load_int(64);
 
-    cell targetContractCell =  in_msg_body~load_ref();
+    cell targetContractCell = in_msg_body~load_ref();
 
     cell argsCell = in_msg_body~load_ref();
 
     cell msgBody = begin_cell()
-                    .store_int(epochId,64)
-                    .store_int(targetChainId,64)
-                    .store_ref(targetContractCell)
-                    .store_slice(sender)
-                    .store_ref(argsCell)
-                    .end_cell();
+        .store_int(epochId, 64)
+        .store_int(targetChainId, 64)
+        .store_ref(targetContractCell)
+        .store_slice(sender)
+        .store_ref(argsCell)
+        .end_cell();
 
     cell msg = begin_cell()
         .store_uint(0x18, 6)
@@ -156,18 +159,18 @@
         .store_slice(msgBody.begin_parse())
         .end_cell();
 
-    send_raw_message(msg,2);
+    send_raw_message(msg, 2);
     return ();
 }
 
-() upsert_white_contract_address(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKey,slice sender,  slice in_msg_body) impure inline {
+() upsert_white_contract_address(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKey, slice sender, slice in_msg_body) impure inline {
     throw_unless(rsp::NotOwner, equal_slices(owner, sender));
-    if(whiteContractAddress.dict_empty?()){
+    if (whiteContractAddress.dict_empty?()) {
         whiteContractAddress = new_dict();
     }
 
     slice address = in_msg_body~load_msg_addr();
-    if(address.slice_data_empty?()){
+    if (address.slice_data_empty?()) {
         return ();
     }
 
@@ -177,17 +180,17 @@
     save_data(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKey);
 }
 
-() upsert_white_oracle_address(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline {
+() upsert_white_oracle_address(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
     throw_unless(rsp::NotOwner, equal_slices(owner, sender));
 
-    if(whiteOracleAddress.dict_empty?()){
+    if (whiteOracleAddress.dict_empty?()) {
         whiteOracleAddress = new_dict();
     }
 
     int op = in_msg_body~load_int(8);
 
     slice address = in_msg_body~load_msg_addr();
-    if(address.slice_data_empty?()){
+    if (address.slice_data_empty?()) {
         throw(rsp::InputDataError);
     }
 
@@ -200,10 +203,10 @@
     ;; set white wallet address
     int inputAddrHash = address.slice_hash();
 
-    if(op == OracleNodeOp::Upsert()){
+    if (op == OracleNodeOp::Upsert()) {
         publicKeyDic~udict_set(256, publicIndex, publicKeySlice);
         whiteOracleAddress~udict_set(256, inputAddrHash, "true");
-    } elseif (op == OracleNodeOp::Delete()){
+    } elseif (op == OracleNodeOp::Delete()) {
         (slice queryPublick, _) = publicKeyDic.udict_get?(256, publicIndex);
         throw_unless(rsp::InputDataError, equal_slices(queryPublick, publicKeySlice));
 
@@ -217,14 +220,14 @@
 }
 
 () withdraw(slice owner, slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotOwner, equal_slices(owner,sender));
+    throw_unless(rsp::NotOwner, equal_slices(owner, sender));
 
     int withdrawAmount = in_msg_body~load_int(256);
     slice addr = in_msg_body~load_msg_addr();
 
     [int balance, _] = get_balance();
     int gas = 10000000;
-    if(balance < (withdrawAmount + gas)){
+    if (balance < (withdrawAmount + gas)) {
         throw(rsp::BalanceNotEnough);
     }
 
@@ -238,11 +241,11 @@
     send_raw_message(msg, 0);
 }
 
-() update_oracle_node_count(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline {
+() update_oracle_node_count(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
     throw_unless(rsp::NotOwner, equal_slices(owner, sender));
 
     int latestOracleNodeCount = in_msg_body~load_int(32);
-    if(oracleNodeCount == latestOracleNodeCount){
+    if (oracleNodeCount == latestOracleNodeCount) {
         return ();
     }
 
@@ -251,7 +254,7 @@
     save_data(latestOracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic);
 }
 
-() resend(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline {
+() resend(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
     ;; check sender
     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, sender));
 
@@ -264,11 +267,11 @@
     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
 }
 
-() update_fee(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender,  slice in_msg_body) impure inline {
-    throw_unless(rsp::NotOwner, equal_slices(owner,sender));
+() update_fee(int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotOwner, equal_slices(owner, sender));
 
     int latest = in_msg_body~load_uint(32);
-    if(fee == latest){
+    if (fee == latest) {
         return ();
     }
 
@@ -277,14 +280,15 @@
     save_data(oracleNodeCount, epochId, latest, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic);
 }
 
-() update_contract_code(slice owner,slice sender,  slice in_msg_body) impure {
-    throw_unless(rsp::NotOwner, equal_slices(owner,sender));
+() update_contract_code(slice owner, slice sender, slice in_msg_body) impure {
+    throw_unless(rsp::NotOwner, equal_slices(owner, sender));
     cell code = in_msg_body~load_ref();
     set_code(code);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
-    if (in_msg_body.slice_empty?()) { ;; ignore all empty messages
+    if (in_msg_body.slice_empty?()) {
+        ;; ignore all empty messages
         return ();
     }
 
@@ -295,58 +299,58 @@
         return ();
     }
 
-    (int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress,cell whiteContractAddress, cell publicKeyDic) = load_data();
+    (int oracleNodeCount, int epochId, int fee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic) = load_data();
     int op = in_msg_body~load_int(32);
     slice sender = cs~load_msg_addr();
 
-    if(op == op::ProxyTransactionToTon()){
+    if (op == op::ProxyTransactionToTon()) {
         throw_unless(rsp::FeeToLow, msg_value >= fee);
         forward_message(oracleNodeCount, whiteOracleAddress, publicKeyDic, sender, in_msg_body);
         return ();
     }
 
-    if(op == op::ProxyTransactionToOtherChain()){
+    if (op == op::ProxyTransactionToOtherChain()) {
         throw_unless(rsp::FeeToLow, msg_value >= fee);
-        receive_message(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender,  in_msg_body);
+        receive_message(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
         return ();
     }
 
     ;; add ton white contract address
-    if(op == op::UpsertWhiteContractAddress()){
-        upsert_white_contract_address(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender,  in_msg_body);
+    if (op == op::UpsertWhiteContractAddress()) {
+        upsert_white_contract_address(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
         return ();
     }
 
     ;; add white wallet address
-    if(op == op::UpsertWhiteOracleAddress()){
+    if (op == op::UpsertWhiteOracleAddress()) {
         upsert_white_oracle_address(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
         return ();
     }
 
-    if(op == op::ResendTx()){
+    if (op == op::ResendTx()) {
         throw_unless(rsp::FeeToLow, msg_value >= fee);
         resend(oracleNodeCount, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
-        return();
+        return ();
     }
 
-    if(op == op::Withdraw()){
+    if (op == op::Withdraw()) {
         withdraw(owner, sender, in_msg_body);
-        return();
+        return ();
     }
 
-    if(op == op::UpdateOracleNodeCount()){
+    if (op == op::UpdateOracleNodeCount()) {
         update_oracle_node_count(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
         return ();
     }
 
-    if(op == op::UpdateCode()){
+    if (op == op::UpdateCode()) {
         update_contract_code(owner, sender, in_msg_body);
         return ();
     }
 
-    if(op == op:UpdateFee()){
+    if (op == op:UpdateFee()) {
         update_fee(oracleNodeCount, epochId, fee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
-        return();
+        return ();
     }
 
     throw(rsp::OperateNotMatch);
@@ -358,7 +362,7 @@
 ;; ruturn -1:ture , 0:false
 ;;
 (int) check_contract_address_has_permission(cell contractAddress) method_id {
-    (_, _,_,_,_, cell whiteContractAddress, _) = load_data();
+    (_, _, _, _, _, cell whiteContractAddress, _) = load_data();
     slice address = contractAddress.begin_parse();
     return check_address_in_dic(whiteContractAddress, address);
 }
@@ -369,12 +373,12 @@
 ;; ruturn -1:ture , 0:false
 ;;
 (int) check_oracle_address_has_permission(cell walletAddress) method_id {
-    (_, _, _, _, cell whiteWalletAddress , _, _) = load_data();
+    (_, _, _, _, cell whiteWalletAddress, _, _) = load_data();
     return check_address_in_dic(whiteWalletAddress, walletAddress.begin_parse());
 }
 
 (int) get_oracle_node_count() method_id {
-    (int oracleNodeCount,_, _, _, _, _, _) = load_data();
+    (int oracleNodeCount, _, _, _, _, _, _) = load_data();
     return oracleNodeCount;
 }
 
@@ -385,6 +389,6 @@
 }
 
 (int) get_current_fee() method_id {
-    (_,_,int fee,_,_,_,_) = load_data();
+    (_, _, int fee, _, _, _, _) = load_data();
     return fee;
 }
