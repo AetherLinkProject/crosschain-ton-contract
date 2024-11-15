@@ -13,7 +13,9 @@ import {} from "qrcode-terminal";
 export type OracleProxyConfig = {
     oracleNodeCount: bigint;
     epochId: bigint;
-    fee: bigint;
+    forwardFee: bigint;
+    receiveFee: bigint;
+    proxyFee: bigint;
     owner: Address;
     whiteWalletAddress: Dictionary<any, any>;
     whiteContractAddress: Dictionary<any, any>;
@@ -24,7 +26,9 @@ export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
     let commonInfo = beginCell()
         .storeInt(config.oracleNodeCount, 32)
         .storeInt(config.epochId, 64)
-        .storeInt(config.fee, 32)
+        .storeInt(config.forwardFee, 32)
+        .storeInt(config.receiveFee, 32)
+        .storeInt(config.proxyFee, 32)
         .storeAddress(config.owner)
         .endCell();
     return beginCell()
@@ -207,14 +211,18 @@ export class OracleProxy implements Contract {
         via: Sender,
         opts: {
             transactionFee: bigint;
-            fee:bigint;
+            forwardFee:bigint;
+            receiveFee:bigint;
+            proxyFee:bigint;
         }){
         await provider.internal(via, {
-            value: opts.fee,
+            value: opts.transactionFee,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.SetFee,32)
-                .storeUint(opts.transactionFee, 32)
+                .storeUint(opts.forwardFee, 32)
+                .storeUint(opts.receiveFee, 32)
+                .storeUint(opts.proxyFee, 32)
                 .endCell(),
         });
     }
@@ -279,6 +287,6 @@ export class OracleProxy implements Contract {
 
     async getFee(provider:ContractProvider){
         let result = await provider.get('get_current_fee', []);
-        return result.stack.readBigNumber();
+        return result.stack.pop();
     }
 }

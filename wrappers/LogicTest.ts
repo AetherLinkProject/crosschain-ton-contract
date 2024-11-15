@@ -14,10 +14,11 @@ import {OracleProxyOpcodes} from "./OracleProxy";
 export type MainConfig = {
     id: number;
     counter: number;
+    inputData: Cell;
 };
 
 export function mainConfigToCell(config: MainConfig): Cell {
-    return beginCell().storeUint(config.id, 32).storeUint(config.counter, 32).endCell();
+    return beginCell().storeUint(config.id, 32).storeUint(config.counter, 32).storeRef(config.inputData).endCell();
 }
 
 export const Opcodes = {
@@ -92,6 +93,7 @@ export class LogicTest implements Contract {
             chainId: number;
             receiver: Slice;
             report: Slice;
+            extraData: Slice;
             fee:bigint,
         }){
         await provider.internal(via,{
@@ -103,6 +105,7 @@ export class LogicTest implements Contract {
                 .storeUint(opts.chainId, 64)
                 .storeRef(opts.receiver.asCell())
                 .storeRef(opts.report.asCell())
+                .storeRef(opts.extraData.asCell())
                 .endCell(),
         })
 

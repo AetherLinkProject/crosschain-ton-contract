@@ -9,6 +9,7 @@ int op::UpdateOracleNodeCount() asm "0x00000006 PUSHINT";
 int op:UpdateFee() asm "0x00000007 PUSHINT";
 int op::UpdateCode() asm "0x00000008 PUSHINT";
 int op::ResendTx() asm "0x00000009 PUSHINT";
+int op::RecordLog() asm "0x0000000a PUSHINT";
 
 ;; declare resend type;
 int resend::AppointTime() asm "0x01 PUSHINT";

@@ -10,7 +10,8 @@ export async function run(provider:NetworkProvider){
     const logicTest = provider.open(LogicTest.createFromConfig(
         {
             id:0,
-            counter:0
+            counter:0,
+            inputData: beginCell().endCell()
         },
         codeCell
     ));

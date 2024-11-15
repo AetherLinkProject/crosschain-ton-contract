@@ -5,9 +5,11 @@ import {OracleProxy} from "../wrappers/OracleProxy";
 export async function run(provider:NetworkProvider){
     let codeCell = await compile('OracleProxy');
     const oracleProxy =provider.open(OracleProxy.createFromConfig({
-            oracleNodeCount:BigInt(7),
+            oracleNodeCount:BigInt(OracleNode),
             epochId:BigInt(0),
-            fee: BigInt(1000000),
+            forwardFee: BigInt(ForwardFee),
+            receiveFee: BigInt(ReceiveFee),
+            proxyFee: BigInt(ProxyFee),
             owner: provider.sender().address!,
             whiteWalletAddress: Dictionary.empty<bigint, Slice>(),
             whiteContractAddress: Dictionary.empty<bigint, Slice>(),

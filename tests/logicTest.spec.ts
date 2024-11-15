@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { Cell, toNano } from '@ton/core';
+import {beginCell, Cell, toNano} from '@ton/core';
 import { LogicTest } from '../wrappers/LogicTest';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
@@ -23,6 +23,7 @@ describe('LogicTest', () => {
                 {
                     id: 10,
                     counter: 11,
+                    inputData: beginCell().endCell()
                 },
                 code
             )
