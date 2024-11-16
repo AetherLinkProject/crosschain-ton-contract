@@ -187,13 +187,18 @@ describe('oracleProxy', () => {
 
         var receiver = beginCell().storeAddress(oracleProxy.address).endCell();
         var report = beginCell().storeBuffer(Buffer.from("0x010101", "hex")).endCell();
+        var extraData = beginCell()
+            .storeInt(12, 64)
+            .storeRef(beginCell().storeBuffer(Buffer.from("0x010101", "hex")))
+            .storeRef(beginCell().storeBuffer(Buffer.from("0x010112121", "hex")))
+            .endCell();
         var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
             proxyAddr: oracleProxy.address,
             chainId: 12,
             receiver: receiver.beginParse(),
             fee: toNano("0.2"),
             report: report.beginParse(),
-            extraData: beginCell().endCell().beginParse()
+            extraData: extraData.beginParse()
         });
 
     });

@@ -1,6 +1,7 @@
 import {compile, NetworkProvider} from "@ton/blueprint";
 import {OracleProxy} from "../wrappers/OracleProxy";
 import {Dictionary, Slice, toNano} from "@ton/core";
+import {OracleNode, ForwardFee, ReceiveFee, ProxyFee} from "../common/const"
 
 export async function run(provider:NetworkProvider){
     let codeCell = await compile('OracleProxy');

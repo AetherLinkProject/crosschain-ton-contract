@@ -1,6 +1,7 @@
 import {compile, NetworkProvider, sleep} from "@ton/blueprint";
 import {Address, address, Dictionary, Slice, toNano} from "@ton/core";
 import {OracleProxy} from "../wrappers/OracleProxy";
+import {OracleNode, ForwardFee, ReceiveFee, ProxyFee} from "../common/const"
 
 export async function run(provider:NetworkProvider){
     let whiteWalletAddressDic = Dictionary.empty<bigint, Slice>();

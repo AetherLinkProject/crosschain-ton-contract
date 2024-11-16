@@ -2,6 +2,7 @@ import {Address, beginCell, Dictionary, Slice, toNano,storeStateInit, TupleItemI
 import {compile, NetworkProvider} from '@ton/blueprint';
 import {OracleProxy} from "../wrappers/OracleProxy";
 import {LogicTest} from "../wrappers/LogicTest";
+import {OracleNode, ForwardFee, ReceiveFee, ProxyFee} from "../common/const"
 
 export async function run(provider:NetworkProvider){
     let logicTestCodeCell = await compile('LogicTest');

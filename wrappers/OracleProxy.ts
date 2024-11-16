@@ -130,6 +130,7 @@ export class OracleProxy implements Contract {
                                     chainId: number;
                                     receiver: Slice;
                                     report: Slice;
+                                    extra:Cell,
                                     fee:bigint,
                                 }){
         await provider.internal(via,{
@@ -141,6 +142,7 @@ export class OracleProxy implements Contract {
                 .storeUint(opts.chainId, 64)
                 .storeRef(opts.receiver.asCell())
                 .storeRef(opts.report.asCell())
+                .storeRef(opts.extra)
                 .endCell(),
         })
 

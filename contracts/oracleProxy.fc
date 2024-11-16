@@ -1,5 +1,6 @@
 #include "imports/stdlib.fc";
 #include "const.fc";
+#include "utility.fc";
 
 ;;
 ;; Storage
@@ -162,17 +163,18 @@
         msgBody.store_ref(extraData);
     }
 
-    cell msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice(my_address())
-        .store_coins(1000000)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .store_uint(op::RecordLog(), 32)
-        .store_uint(op::ProxyTransactionToOtherChain(), 32)
-        .store_slice(msgBody.end_cell().begin_parse())
-        .end_cell();
-
-    send_raw_message(msg, 1);
+    emit_log_simple(op::ProxyTransactionToOtherChain(),msgBody.end_cell(), -1);
+    ;; cell msg = begin_cell()
+    ;;     .store_uint(0x18, 6)
+    ;;     .store_slice(my_address())
+    ;;     .store_coins(1000000)
+    ;;     .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    ;;     .store_uint(op::RecordLog(), 32)
+    ;;     .store_uint(op::ProxyTransactionToOtherChain(), 32)
+    ;;     .store_slice(msgBody.end_cell().begin_parse())
+    ;;     .end_cell();
+    ;;
+    ;; send_raw_message(msg, 1);
 
     return ();
 }
@@ -316,12 +318,12 @@
 
     int op = in_msg_body~load_int(32);
     slice sender = cs~load_msg_addr();
-
-    if (op == op::RecordLog()) {
-        throw_unless(rsp::PermissionDenied, equal_slices(sender, my_address()));
-        ;; for record log
-        return ();
-    }
+    ;;
+    ;; if (op == op::RecordLog()) {
+    ;;     throw_unless(rsp::PermissionDenied, equal_slices(sender, my_address()));
+    ;;     ;; for record log
+    ;;     return ();
+    ;; }
 
     (int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic) = load_data();
 
