@@ -39,7 +39,7 @@
 (cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
     builder extraSlice = begin_cell();
     if(~ extraData.null?()){
-        extraSlice.store_ref(extraData);
+        extraSlice = extraSlice.store_ref(extraData);
     }
     return begin_cell()
         .store_int(targetChainId,64)

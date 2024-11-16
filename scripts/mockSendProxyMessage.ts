@@ -34,6 +34,7 @@ export async function run(provider: NetworkProvider) {
 
     var receiver = beginCell().storeAddress(oracleProxy.address).endCell();
     var buffer = Buffer.from("0x010101", "hex");
+    console.log("buffer->", buffer.toString("hex"));
     var report = beginCell().storeBuffer(buffer).endCell();
     var extraData = beginCell()
         .storeInt(12, 64)
@@ -44,9 +45,9 @@ export async function run(provider: NetworkProvider) {
     await logicTest.sendCrossChainMessage(provider.sender(), {
         proxyAddr: oracleProxy.address,
         chainId: 12,
-        receiver: receiver.beginParse(),
+        receiver: receiver,
         fee: toNano("0.015"),
-        report: report.beginParse(),
-        extraData: extraData.beginParse()
+        report: report,
+        extraData: extraData
     })
 }

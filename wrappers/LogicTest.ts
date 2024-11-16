@@ -91,9 +91,9 @@ export class LogicTest implements Contract {
         opts: {
             proxyAddr:Address,
             chainId: number;
-            receiver: Slice;
-            report: Slice;
-            extraData: Slice;
+            receiver: Cell;
+            report: Cell;
+            extraData: Cell;
             fee:bigint,
         }){
         await provider.internal(via,{
@@ -103,9 +103,9 @@ export class LogicTest implements Contract {
                 .storeUint(OracleProxyOpcodes.ProxyTonToAelf, 32)
                 .storeAddress(opts.proxyAddr)
                 .storeUint(opts.chainId, 64)
-                .storeRef(opts.receiver.asCell())
-                .storeRef(opts.report.asCell())
-                .storeRef(opts.extraData.asCell())
+                .storeRef(opts.receiver)
+                .storeRef(opts.report)
+                .storeRef(opts.extraData)
                 .endCell(),
         })
 

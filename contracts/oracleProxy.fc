@@ -159,22 +159,12 @@
 
     ;; extra data
     cell extraData = in_msg_body~load_ref();
+
     if (~ extraData.null?()) {
-        msgBody.store_ref(extraData);
+        msgBody = msgBody.store_ref(extraData);
     }
 
     emit_log_simple(op::ProxyTransactionToOtherChain(),msgBody.end_cell(), -1);
-    ;; cell msg = begin_cell()
-    ;;     .store_uint(0x18, 6)
-    ;;     .store_slice(my_address())
-    ;;     .store_coins(1000000)
-    ;;     .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-    ;;     .store_uint(op::RecordLog(), 32)
-    ;;     .store_uint(op::ProxyTransactionToOtherChain(), 32)
-    ;;     .store_slice(msgBody.end_cell().begin_parse())
-    ;;     .end_cell();
-    ;;
-    ;; send_raw_message(msg, 1);
 
     return ();
 }

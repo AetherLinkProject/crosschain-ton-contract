@@ -192,14 +192,25 @@ describe('oracleProxy', () => {
             .storeRef(beginCell().storeBuffer(Buffer.from("0x010101", "hex")))
             .storeRef(beginCell().storeBuffer(Buffer.from("0x010112121", "hex")))
             .endCell();
-        var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
+
+       var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
             proxyAddr: oracleProxy.address,
             chainId: 12,
-            receiver: receiver.beginParse(),
+            receiver: receiver,
             fee: toNano("0.2"),
-            report: report.beginParse(),
-            extraData: extraData.beginParse()
+            report: report,
+            extraData: extraData
         });
+
+       console.log("aaa-->",result);
+        // var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
+        //     proxyAddr: oracleProxy.address,
+        //     chainId: 12,
+        //     receiver: receiver.beginParse(),
+        //     fee: toNano("0.2"),
+        //     report: report.beginParse(),
+        //     extraData: extraData
+        // });
 
     });
 
