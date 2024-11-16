@@ -202,7 +202,6 @@ describe('oracleProxy', () => {
             extraData: extraData
         });
 
-       console.log("aaa-->",result);
         // var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
         //     proxyAddr: oracleProxy.address,
         //     chainId: 12,

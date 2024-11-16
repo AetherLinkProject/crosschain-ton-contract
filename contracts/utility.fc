@@ -37,16 +37,16 @@
 ;;  cell:assemble data as cell
 ;;
 (cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
-    builder extraSlice = begin_cell();
-    if(~ extraData.null?()){
-        extraSlice = extraSlice.store_ref(extraData);
-    }
-    return begin_cell()
+    builder result = begin_cell()
         .store_int(targetChainId,64)
         .store_ref(receiver)
-        .store_ref(report)
-        .store_ref(extraSlice.end_cell())
-        .end_cell();
+        .store_ref(report);
+    if(~ extraData.null?()){
+        result = result.store_ref(extraData);
+        return result.end_cell();
+    }
+
+    return result.end_cell();
 }
 
 () emit_log_simple(int event_id, cell data, int need_separate_cell) impure inline {
