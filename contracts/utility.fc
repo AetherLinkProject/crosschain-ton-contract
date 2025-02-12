@@ -14,11 +14,11 @@
 ;;  slice:message
 
 (int, int, int, slice, slice, slice) convert_forward_message(slice message_body) impure {
-    int messageId = message_body~load_int(256);
+    int messageId = message_body~load_int(128);
 
     slice orignalData = message_body~load_ref().begin_parse();
-    int sourceChaindId = orignalData~load_int(64);
-    int targetChainId = orignalData~load_int(64);
+    int sourceChaindId = orignalData~load_int(32);
+    int targetChainId = orignalData~load_int(32);
     slice sender = orignalData~load_ref().begin_parse();
     slice receiver = orignalData~load_ref().begin_parse();
     slice message = orignalData~load_ref().begin_parse();
@@ -38,7 +38,7 @@
 ;;
 (cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
     builder result = begin_cell()
-        .store_int(targetChainId,64)
+        .store_int(targetChainId,32)
         .store_ref(receiver)
         .store_ref(report);
     if(~ extraData.null?()){

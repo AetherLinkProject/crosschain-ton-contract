@@ -102,7 +102,7 @@
     ;; check
     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteOracleAddress, sender));
 
-    int messageId = in_msg_body~load_int(256);
+    int messageId = in_msg_body~load_int(128);
     slice addr = in_msg_body~load_msg_addr();
 
     ;; limit reentrancy
@@ -110,7 +110,7 @@
 
     cell body = in_msg_body~load_ref();
 
-    int originalHash = begin_cell().store_int(messageId, 256)
+    int originalHash = begin_cell().store_int(messageId, 128)
         .store_slice(addr)
         .store_ref(body)
         .end_cell()
@@ -119,7 +119,7 @@
     validate_multi_sign(oracleNodeCount, publicKeyDic, originalHash, in_msg_body);
 
     cell proxyBody = begin_cell()
-        .store_int(messageId, 256)
+        .store_int(messageId, 128)
         .store_ref(body)
         .end_cell();
 
@@ -143,7 +143,7 @@
     save_data(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic);
 
     ;; target chain id
-    int targetChainId = in_msg_body~load_int(64);
+    int targetChainId = in_msg_body~load_int(32);
 
     ;; target contract address
     cell targetContractCell = in_msg_body~load_ref();
@@ -152,7 +152,7 @@
     cell orignalData = in_msg_body~load_ref();
     builder msgBody = begin_cell()
         .store_int(epochId, 64)
-        .store_int(targetChainId, 64)
+        .store_int(targetChainId, 32)
         .store_ref(targetContractCell)
         .store_slice(sender)
         .store_ref(orignalData);
@@ -265,7 +265,7 @@
     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, sender));
 
     ;; try anlaysis in_msg_body
-    int messageId = in_msg_body~load_int(256);
+    int messageId = in_msg_body~load_int(128);
 
     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime());
 

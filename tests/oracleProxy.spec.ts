@@ -340,7 +340,7 @@ async function addWhiteWalletAddress(oracleProxy: SandboxContract<OracleProxy>, 
 
 function assemble_unsign_data(messageId: bigint, contractAddress: Address, data: Cell) {
     let unSignCell = beginCell()
-        .storeInt(messageId, 256)
+        .storeInt(messageId, 128)
         .storeAddress(contractAddress)
         .storeRef(data)
         .endCell();

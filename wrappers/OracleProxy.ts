@@ -139,7 +139,7 @@ export class OracleProxy implements Contract {
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.ProxyTonToAelf, 32)
                 .storeAddress(opts.proxyAddr)
-                .storeUint(opts.chainId, 64)
+                .storeUint(opts.chainId, 32)
                 .storeRef(opts.receiver.asCell())
                 .storeRef(opts.report.asCell())
                 .storeRef(opts.extraData)
@@ -160,7 +160,7 @@ export class OracleProxy implements Contract {
     ) {
         let body = beginCell()
             .storeUint(OracleProxyOpcodes.ProxyAelfToTon,32)
-            .storeInt(opts.messageId, 256)
+            .storeInt(opts.messageId, 128)
             .storeAddress(opts.contractAddress)
             .storeRef(opts.data)
             .storeRef(new Builder().storeDict<bigint, Cell>(opts.multiSign).endCell())
@@ -261,7 +261,7 @@ export class OracleProxy implements Contract {
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.ResendTx, 32)
                 .storeAddress(opts.proxyAddr)
-                .storeInt(opts.messageId, 256)
+                .storeInt(opts.messageId, 128)
                 .storeInt(opts.delayTime, 32)
                 .endCell()
         });

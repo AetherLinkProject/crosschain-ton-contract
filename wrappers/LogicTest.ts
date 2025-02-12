@@ -80,7 +80,7 @@ export class LogicTest implements Contract {
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.ResendTx, 32)
                 .storeAddress(opts.proxyAddr)
-                .storeInt(opts.messageId, 256)
+                .storeInt(opts.messageId, 128)
                 .storeInt(opts.delayTime, 32)
                 .endCell()
         });

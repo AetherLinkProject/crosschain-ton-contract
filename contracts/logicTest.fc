@@ -62,10 +62,10 @@ global cell inputData;
 
     if (op == op::ResendTx()) {
         slice proxyAddr = in_msg_body~load_msg_addr();
-        int messageId = in_msg_body~load_int(256);
+        int messageId = in_msg_body~load_int(128);
         int delayTime = in_msg_body~load_int(32);
 
-        cell bodyCell = begin_cell().store_int(messageId, 256)
+        cell bodyCell = begin_cell().store_int(messageId, 128)
             .store_int(1, 8)
             .store_int(delayTime, 32)
             .end_cell();
@@ -91,7 +91,7 @@ global cell inputData;
 
     if (op == op::ProxyTransactionToOtherChain()) {
         slice proxyAddr = in_msg_body~load_msg_addr();
-        int targetChainId = in_msg_body~load_uint(64);
+        int targetChainId = in_msg_body~load_uint(32);
         cell receiver = in_msg_body~load_ref();
         cell report = in_msg_body~load_ref();
         cell extraData = in_msg_body~load_ref();
