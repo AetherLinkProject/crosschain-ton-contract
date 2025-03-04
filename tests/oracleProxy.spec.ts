@@ -1,4 +1,4 @@
-import {Blockchain, SandboxContract, TreasuryContract} from '@ton/sandbox';
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import {
     Address,
     beginCell, BitString,
@@ -8,14 +8,14 @@ import {
     toNano, TupleBuilder,
 } from '@ton/core';
 
-import {KeyPair, mnemonicNew, sign} from '@ton/crypto';
-import {WalletContractV4} from "@ton/ton";
-import {OracleProxy, OracleProxyOpcodes} from '../wrappers/OracleProxy';
-import {LogicTest, Opcodes} from '../wrappers/LogicTest';
+import { KeyPair, mnemonicNew, sign } from '@ton/crypto';
+import { WalletContractV4 } from "@ton/ton";
+import { OracleProxy, OracleProxyOpcodes } from '../wrappers/OracleProxy';
+import { LogicTest, Opcodes } from '../wrappers/LogicTest';
 import '@ton/test-utils';
-import {compile} from '@ton/blueprint';
-import {Treasury} from '@ton/sandbox/dist/treasury/Treasury';
-import {mnemonicToWalletKey} from "@ton/crypto/dist/mnemonic/mnemonic";
+import { compile } from '@ton/blueprint';
+import { Treasury } from '@ton/sandbox/dist/treasury/Treasury';
+import { mnemonicToWalletKey } from "@ton/crypto/dist/mnemonic/mnemonic";
 
 describe('oracleProxy', () => {
     let oracleProxyCode: Cell;
@@ -30,7 +30,7 @@ describe('oracleProxy', () => {
             let mnemonic = await mnemonicNew(24);
             let keyPair = await mnemonicToWalletKey(mnemonic);
             keyPairList.push(keyPair);
-            keyPairWalletList.push(WalletContractV4.create({workchain: 0, publicKey: keyPair.publicKey}))
+            keyPairWalletList.push(WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey }))
         }
     });
 
@@ -56,6 +56,7 @@ describe('oracleProxy', () => {
                     whiteWalletAddress: Dictionary.empty<bigint, Slice>(),
                     whiteContractAddress: Dictionary.empty<bigint, Slice>(),
                     publicKeyDic: Dictionary.empty<bigint, Slice>(Dictionary.Keys.BigInt(32)),
+                    multiSigWalletAddress: deployer.getSender().address
                 },
                 oracleProxyCode
             )
@@ -97,10 +98,13 @@ describe('oracleProxy', () => {
             whiteContractAddress: newAddress,
             amount: toNano("0.05")
         });
+
+        console.log("only owner can send message", addContractAddressResult);
+
         expect(addContractAddressResult.transactions).toHaveTransaction({
             from: otherWallet.getSender().address,
             to: oracleProxy.address,
-            exitCode: 100,
+            exitCode: 300,
             success: false,
             aborted: true,
         })
@@ -193,7 +197,7 @@ describe('oracleProxy', () => {
             .storeRef(beginCell().storeBuffer(Buffer.from("0x010112121", "hex")))
             .endCell();
 
-       var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
+        var result = await logicTest.sendCrossChainMessage(deployer.getSender(), {
             proxyAddr: oracleProxy.address,
             chainId: 12,
             receiver: receiver,
@@ -321,7 +325,7 @@ async function addWhiteWalletAddress(oracleProxy: SandboxContract<OracleProxy>, 
     });
     for (var i = 0; i < keyPairs.length; i++) {
         let keyPair = keyPairs[i];
-        let wallet = WalletContractV4.create({workchain: 0, publicKey: keyPair.publicKey});
+        let wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey });
         const addWalletAddressResult = await oracleProxy.sendUpsertWhiteOracleAddress(sender, {
             whiteOracleAddress: wallet.address,
             ifDelete: false,

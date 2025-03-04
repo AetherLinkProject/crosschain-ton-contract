@@ -60,7 +60,7 @@ global cell inputData;
         return ();
     }
 
-    if (op == op::ResendTx()) {
+    if (op == op::ResendTx) {
         slice proxyAddr = in_msg_body~load_msg_addr();
         int messageId = in_msg_body~load_int(128);
         int delayTime = in_msg_body~load_int(32);
@@ -75,7 +75,7 @@ global cell inputData;
             .store_slice(proxyAddr)
             .store_coins(15000000)
             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::ResendTx(), 32)
+            .store_uint(op::ResendTx, 32)
             .store_slice(bodyCell.begin_parse())
             .end_cell();
 
@@ -83,13 +83,13 @@ global cell inputData;
         return ();
     }
 
-    if (op == op::ProxyTransactionToTon()) {
+    if (op == op::ProxyTransactionToTon) {
         inputData = begin_cell().store_slice(in_msg_body).end_cell();
 
         return ();
     }
 
-    if (op == op::ProxyTransactionToOtherChain()) {
+    if (op == op::ProxyTransactionToOtherChain) {
         slice proxyAddr = in_msg_body~load_msg_addr();
         int targetChainId = in_msg_body~load_uint(32);
         cell receiver = in_msg_body~load_ref();
@@ -103,7 +103,7 @@ global cell inputData;
             .store_slice(proxyAddr)
             .store_coins(20000000)
             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::ProxyTransactionToOtherChain(), 32)
+            .store_uint(op::ProxyTransactionToOtherChain, 32)
             .store_slice(body.begin_parse())
             .end_cell();
 

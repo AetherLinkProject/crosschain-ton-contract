@@ -20,6 +20,7 @@ export type OracleProxyConfig = {
     whiteWalletAddress: Dictionary<any, any>;
     whiteContractAddress: Dictionary<any, any>;
     publicKeyDic:Dictionary<any, any>;
+    multiSigWalletAddress: Address;
 };
 
 export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
@@ -36,6 +37,7 @@ export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
         .storeDict(config.whiteWalletAddress)
         .storeDict(config.whiteContractAddress)
         .storeDict(config.publicKeyDic)
+        .storeAddress(config.multiSigWalletAddress)
         .endCell();
 }
 
