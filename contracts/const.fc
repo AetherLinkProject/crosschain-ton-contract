@@ -29,6 +29,8 @@ const rsp::InputDataError = 105;
 const rsp::SignerNotEnough = 106;
 const rsp::SignatureError = 107;
 const rsp::OperateNotMatch = 108;
+const rsp::MessageExisted = 109;
+const rsp::MessageNotFound = 110;
 
 ;; MultiSigWallet
 const rsp::NotMultiSig = 300;  

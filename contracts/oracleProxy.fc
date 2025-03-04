@@ -1,4 +1,4 @@
-#include "imports/stdlib.fc";
+#include "./common/stdlib.fc";
 #include "const.fc";
 #include "utility.fc";
 
@@ -106,7 +106,7 @@
     int messageId = in_msg_body~load_int(128);
     (int exists, cell usedMessages) = load_used_messages();
     
-    ;; throw_unless(rsp::ReplayAttackDetected(), exists == 0);
+    throw_unless(rsp::MessageExisted, exists == 0);
     usedMessages~udict_set(128, messageId, "true");
 
     slice addr = in_msg_body~load_msg_addr();
@@ -268,23 +268,49 @@
 }
 
 () notify_resend_needed(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, sender));
-
     int messageId = in_msg_body~load_int(128);
-
     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime);
-
     int maxDelaySeconds = 60 * 60 * 24;
     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
+
+    (int exists, cell usedMessages) = load_used_messages();
+    
+    throw_unless(rsp::MessageNotFound, exists == -1);
+    (slice storedData, int found) = usedMessages.udict_get?(128, messageId);
+    
+    throw_unless(rsp::PermissionDenied, found == -1);
+    slice storedSender = storedData~load_msg_addr();
+    throw_unless(rsp::PermissionDenied, equal_slices(storedSender, sender));
 
     builder logData = begin_cell()
         .store_int(messageId, 128)
         .store_slice(sender)
-        .store_slice(my_address()) 
+        .store_slice(my_address())  
         .store_int(now(), 64);  
-    
+
     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
+
+    usedMessages~udict_delete?(128, messageId);
+    save_used_messages(usedMessages);
 }
+
+;; () notify_resend_needed(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
+;;     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, sender));
+;;     int messageId = in_msg_body~load_int(128);
+
+;;     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime);
+
+;;     int maxDelaySeconds = 60 * 60 * 24;
+;;     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
+
+;;     builder logData = begin_cell()
+;;         .store_int(messageId, 128)
+;;         .store_slice(sender)
+;;         .store_slice(my_address()) 
+;;         .store_int(now(), 64);  
+    
+;;     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
+;; }
 
 () update_fee(int oracleNodeCount, int epochId, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
     ;; throw_unless(rsp::NotOwner, equal_slices(owner, sender));
