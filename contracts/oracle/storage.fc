@@ -1,0 +1,51 @@
+#include "../common/stdlib.fc";
+
+global int storage::oracleNodeCount;
+global int storage::epochId;
+global int storage::forwardFee;
+global int storage::receiveFee;
+global int storage::proxyFee;
+global slice storage::owner;
+global slice storage::multiSignAddress;
+global cell storage::whiteOracleAddress;
+global cell storage::whiteContractAddress;
+global cell storage::publicKeyDic;
+global cell storage::usedMessages;
+global cell storage::message_record_dic_bucket;
+
+() load_data() impure inline {
+    slice ds = get_data().begin_parse();
+    slice commonInfo = ds~load_ref().begin_parse();
+    storage::oracleNodeCount = commonInfo~load_uint(32);
+    storage::epochId = commonInfo~load_uint(64);
+    storage::forwardFee = commonInfo~load_uint(32);
+    storage::receiveFee = commonInfo~load_uint(32);
+    storage::proxyFee = commonInfo~load_uint(32);
+    storage::owner = commonInfo~load_msg_addr();
+    storage::multiSignAddress = commonInfo~load_msg_addr(); 
+
+    storage::whiteOracleAddress = ds~load_dict();
+    storage::whiteContractAddress = ds~load_dict();
+    storage::publicKeyDic = ds~load_dict();
+    storage::usedMessages = ds~load_dict();
+    storage::message_record_dic_bucket = ds~load_dict();
+}
+
+() save_data() impure inline {
+    set_data(begin_cell()
+        .store_ref(begin_cell()
+            .store_uint(storage::oracleNodeCount, 32)
+            .store_uint(storage::epochId, 64)
+            .store_uint(storage::forwardFee, 32)
+            .store_uint(storage::receiveFee, 32)
+            .store_uint(storage::proxyFee, 32)
+            .store_slice(storage::owner)
+            .store_slice(storage::multiSignAddress)
+            .end_cell())
+        .store_dict(storage::whiteOracleAddress)
+        .store_dict(storage::whiteContractAddress)
+        .store_dict(storage::publicKeyDic)
+        .store_dict(storage::usedMessages)
+        .store_dict(storage::message_record_dic_bucket)
+        .end_cell());
+}

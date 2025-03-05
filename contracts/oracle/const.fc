@@ -31,9 +31,12 @@ const rsp::SignatureError = 107;
 const rsp::OperateNotMatch = 108;
 const rsp::MessageExisted = 109;
 const rsp::MessageNotFound = 110;
+const rsp::ExpiredMessage = 111;
+const rsp::AlreadyRecord = 112;
 
 ;; MultiSigWallet
 const rsp::NotMultiSig = 300;  
 const rsp::MultiSigAddressEmpty = 301; 
 const rsp::MultiSigInvalidUpdate = 302; 
 const rsp::MultiSigNotAuthorized = 303; 
+

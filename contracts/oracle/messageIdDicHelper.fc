@@ -1,0 +1,56 @@
+#include "storage.fc";
+#include "../common/dic.fc";
+#include "../common/stdlib.fc";
+#include "../common/utils.fc";
+#include "../common/message.fc";
+
+(slice, int) findMessage(int messageId){
+    slice messageKey = begin_cell().store_int(messageId, 128).end_cell().begin_parse();
+    return dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
+}
+
+(int) store_message(int timestamp, int message_id, slice receiver) inline {
+    slice messageKey = begin_cell().store_int(message_id, 128).end_cell().begin_parse();
+    (slice storedMessageValue, int found) = dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
+    if (found) {
+        return -1;
+    }
+
+    slice messageValue = begin_cell().store_slice(receiver).end_cell().begin_parse();
+    storage::usedMessages = dict_set(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey, messageValue);
+
+    slice timestampKey = begin_cell().store_uint(timestamp, 64).store_int(message_id, 128).end_cell().begin_parse();
+    (slice storedTimeStampValue, int timestampValueFound) = dict_get?(storage::message_record_dic_bucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
+    if (timestampValueFound != 0) {
+        slice timestampValue = begin_cell().store_int(-1, 1).end_cell().begin_parse();
+        storage::message_record_dic_bucket = dict_set(storage::message_record_dic_bucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey, timestampValue);
+    }
+
+    clear_expired_message();
+
+    return 0;
+}
+
+() clear_expired_message() inline {
+    (slice key_slice, slice value, int flag) = dict_get_min?(storage::message_record_dic_bucket, TIMESTAMP_MESSAGE_KEY_LENGTH);
+
+    while (flag) {
+        int timestamp_key = key_slice~load_uint(64);
+        if (timestamp_key + EXPIRE_TIME <= now()) {
+            int messageId = key_slice~load_int(128);
+            int deleteMessageResult = delete_message(messageId);
+
+            slice key_to_delete = begin_cell().store_uint(timestamp_key, 64).store_int(messageId, 128).end_cell().begin_parse();
+            (storage::message_record_dic_bucket,int deleteTimestampValueResult) = dict_delete?(storage::message_record_dic_bucket, TIMESTAMP_MESSAGE_KEY_LENGTH, key_to_delete);
+            (key_slice, value, flag) = dict_get_next?(storage::message_record_dic_bucket, TIMESTAMP_MESSAGE_KEY_LENGTH, key_to_delete);
+        } else {
+            flag = 0;
+        }
+    }
+}
+
+(int) delete_message(int messageId) inline {
+    slice messageKey = begin_cell().store_int(messageId, 128).end_cell().begin_parse();
+    (storage::message_record_dic_bucket, int deleted) = dict_delete?(storage::message_record_dic_bucket, MESSAGE_KEY_LENGTH, messageKey);
+    return deleted; 
+}

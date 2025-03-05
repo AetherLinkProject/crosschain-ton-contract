@@ -53,10 +53,12 @@ describe('oracleProxy', () => {
                     receiveFee: BigInt(10000000),
                     proxyFee: BigInt(10000000),
                     owner: deployer.getSender().address,
+                    multiSignAddress: deployer.getSender().address,
                     whiteWalletAddress: Dictionary.empty<bigint, Slice>(),
                     whiteContractAddress: Dictionary.empty<bigint, Slice>(),
                     publicKeyDic: Dictionary.empty<bigint, Slice>(Dictionary.Keys.BigInt(32)),
-                    multiSigWalletAddress: deployer.getSender().address
+                    usedMessages: Dictionary.empty<bigint, Slice>(),
+                    message_record_dic_bucket: Dictionary.empty(Dictionary.Keys.BigInt(16), Dictionary.Values.Cell())
                 },
                 oracleProxyCode
             )

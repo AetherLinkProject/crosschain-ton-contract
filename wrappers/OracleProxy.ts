@@ -17,10 +17,13 @@ export type OracleProxyConfig = {
     receiveFee: bigint;
     proxyFee: bigint;
     owner: Address;
+    multiSignAddress: Address;
+
     whiteWalletAddress: Dictionary<any, any>;
     whiteContractAddress: Dictionary<any, any>;
     publicKeyDic: Dictionary<any, any>;
-    multiSigWalletAddress: Address;
+    usedMessages: Dictionary<any, any>;
+    message_record_dic_bucket: Dictionary<any, any>;
 };
 
 export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
@@ -31,13 +34,15 @@ export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
         .storeInt(config.receiveFee, 32)
         .storeInt(config.proxyFee, 32)
         .storeAddress(config.owner)
+        .storeAddress(config.multiSignAddress)
         .endCell();
     return beginCell()
         .storeRef(commonInfo)
         .storeDict(config.whiteWalletAddress)
         .storeDict(config.whiteContractAddress)
         .storeDict(config.publicKeyDic)
-        .storeAddress(config.multiSigWalletAddress)
+        .storeDict(config.usedMessages)
+        .storeDict(config.message_record_dic_bucket)
         .endCell();
 }
 

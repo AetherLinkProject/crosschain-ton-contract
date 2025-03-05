@@ -1,56 +1,9 @@
-#include "./common/stdlib.fc";
-#include "const.fc";
-#include "utility.fc";
-
-;;
-;; Storage
-;;
-;; int   oracle node count
-;; int   epochId for oracle node consensus
-;; int   fee for receive forward message
-;; int   fee for send receive message
-;; int   fee for proxy message to other contract
-;; slice owner address
-;; cell  white oracle address dictionary
-;; cell  white contract address dictionary
-;; cell  public key dictionary
-;;
-(int, int, int, int, int, slice, cell, cell, cell, slice) load_data() {
-    slice ds = get_data().begin_parse();
-    slice commonInfo = ds~load_ref().begin_parse();
-    int oracleNodeCount = commonInfo~load_uint(32);
-    int epochId = commonInfo~load_uint(64);
-    int forwardFee = commonInfo~load_uint(32);
-    int receiveFee = commonInfo~load_uint(32);
-    int proxyFee = commonInfo~load_uint(32);
-    slice owner = commonInfo~load_msg_addr();
-
-    cell whiteOracleAddress = ds~load_dict();
-    cell whiteContractAddress = ds~load_dict();
-    cell publicKeyDic = ds~load_dict();
-    slice multiSigWalletAddress = ds~load_msg_addr(); 
-
-    return (oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress);
-}
-
-() save_data(int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress) impure inline_ref {
-    cell commonInfo = begin_cell()
-        .store_uint(oracleNodeCount, 32)
-        .store_uint(epochId, 64)
-        .store_uint(forwardFee, 32)
-        .store_uint(receiveFee, 32)
-        .store_uint(proxyFee, 32)
-        .store_slice(owner)
-        .end_cell();
-
-    set_data(begin_cell()
-        .store_ref(commonInfo)
-        .store_dict(whiteOracleAddress)
-        .store_dict(whiteContractAddress)
-        .store_dict(publicKeyDic)
-        .store_slice(multiSigWalletAddress)
-        .end_cell());
-}
+#include "common/stdlib.fc";
+#include "common/utils.fc";
+#include "oracle/const.fc";
+#include "oracle/utility.fc";
+#include "oracle/messageIdDicHelper.fc";
+#include "oracle/storage.fc";
 
 (int) check_address_in_dic(cell dic, slice address) inline_ref {
     if (dic.dict_empty?()) {
@@ -99,28 +52,28 @@
     throw_unless(rsp::SignerNotEnough, signCount >= leastSignerCount);
 }
 
-() forward_message(int oracleNodeCount, cell whiteOracleAddress, int proxyFee, cell publicKeyDic, slice sender, slice in_msg_body) impure inline_ref {
+() forward_message(slice sender, slice in_msg_body) impure inline_ref {
     ;; check
-    throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteOracleAddress, sender));
+    throw_unless(rsp::PermissionDenied, check_address_in_dic(storage::whiteOracleAddress, sender));
 
     int messageId = in_msg_body~load_int(128);
-    (int exists, cell usedMessages) = load_used_messages();
-    
-    throw_unless(rsp::MessageExisted, exists == 0);
-    usedMessages~udict_set(128, messageId, "true");
+    int timestamp = in_msg_body~load_uint(64); ;; 8 bytes
+    throw_unless(rsp::ExpiredMessage, timestamp + EXPIRE_TIME > now());
 
     slice addr = in_msg_body~load_msg_addr();
     throw_unless(rsp::InputDataError, ~ equal_slices(addr, my_address()));
 
-    cell body = in_msg_body~load_ref();
+    int success = store_message(timestamp, messageId, addr);
+    throw_unless(rsp::AlreadyRecord, success == 0);
 
+    cell body = in_msg_body~load_ref();
     int reportHash = begin_cell().store_int(messageId, 128)
         .store_slice(addr)
         .store_ref(body)
         .end_cell()
         .cell_hash();
 
-    validate_multi_sign(oracleNodeCount, publicKeyDic, reportHash, in_msg_body);
+    validate_multi_sign(storage::oracleNodeCount, storage::publicKeyDic, reportHash, in_msg_body);
 
     cell proxyBody = begin_cell()
         .store_int(messageId, 128)
@@ -130,7 +83,7 @@
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(addr)
-        .store_coins(proxyFee)
+        .store_coins(storage::proxyFee)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         .store_uint(op::ProxyTransactionToTon, 32)
         .store_slice(proxyBody.begin_parse())
@@ -139,12 +92,11 @@
     send_raw_message(msg, 1);
 }
 
-() receive_message(int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
-    ;; throw_unless(rsp::PermissionDenied, ~ equal_slices(owner,sender));
-    throw_unless(rsp::NotInWhiteList, check_address_in_dic(whiteContractAddress, sender));
+() receive_message(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotInWhiteList, check_address_in_dic(storage::whiteContractAddress, sender));
 
-    epochId += 1;
-    save_data(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress);
+    storage::epochId += 1;
+    save_data();
 
     ;; target chain id
     int targetChainId = in_msg_body~load_int(32);
@@ -155,7 +107,7 @@
     ;; orignal data
     cell orignalData = in_msg_body~load_ref();
     builder msgBody = begin_cell()
-        .store_int(epochId, 64)
+        .store_int(storage::epochId, 64)
         .store_int(targetChainId, 32)
         .store_ref(targetContractCell)
         .store_slice(sender)
@@ -175,29 +127,26 @@
     return ();
 }
 
-() upsert_white_contract_address(int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKey, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
-    ;; throw_unless(rsp::NotOwner, equal_slices(owner, sender));
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
-    if (whiteContractAddress.dict_empty?()) {
-        whiteContractAddress = new_dict();
+() upsert_white_contract_address(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+
+    if (storage::whiteContractAddress.dict_empty?()) {
+        storage::whiteContractAddress = new_dict();
     }
 
     slice address = in_msg_body~load_msg_addr();
 
     int inputAddrHash = address.slice_hash();
-    whiteContractAddress~udict_set(256, inputAddrHash, "true");
+    storage::whiteContractAddress~udict_set(256, inputAddrHash, "true");
 
-    save_data(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKey, multiSigWalletAddress);
+    save_data();
 }
 
-() upsert_white_oracle_address(int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
-    ;; throw_unless(rsp::NotOwner, equal_slices(owner, sender));
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+() upsert_white_oracle_address(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
-    if (whiteOracleAddress.dict_empty?()) {
-        whiteOracleAddress = new_dict();
+    if (storage::whiteOracleAddress.dict_empty?()) {
+        storage::whiteOracleAddress = new_dict();
     }
 
     int op = in_msg_body~load_int(8);
@@ -206,33 +155,29 @@
 
     ;; set public key
     int publicIndex = in_msg_body~load_uint(256);
-    ;; int publicKey = in_msg_body~load_uint(256);
-    ;; cell publicKeyCell = begin_cell().store_uint(publicKey, 256).end_cell();
-    ;; slice publicKeySlice = publicKeyCell.begin_parse();
     slice publicKeySlice = in_msg_body~load_bits(256);
 
     ;; set white wallet address
     int inputAddrHash = address.slice_hash();
 
     if (op == OracleNodeOp::Upsert) {
-        publicKeyDic~udict_set(256, publicIndex, publicKeySlice);
-        whiteOracleAddress~udict_set(256, inputAddrHash, "true");
+        storage::publicKeyDic~udict_set(256, publicIndex, publicKeySlice);
+        storage::whiteOracleAddress~udict_set(256, inputAddrHash, "true");
     } elseif (op == OracleNodeOp::Delete) {
-        (slice queryPublick, _) = publicKeyDic.udict_get?(256, publicIndex);
+        (slice queryPublick, _) = storage::publicKeyDic.udict_get?(256, publicIndex);
         throw_unless(rsp::InputDataError, equal_slices(queryPublick, publicKeySlice));
 
-        publicKeyDic~udict_delete?(256, publicIndex);
-        whiteOracleAddress~udict_delete?(256, inputAddrHash);
+        storage::publicKeyDic~udict_delete?(256, publicIndex);
+        storage::whiteOracleAddress~udict_delete?(256, inputAddrHash);
     } else {
         throw(rsp::InputDataError); 
     }
 
-    save_data(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress);
+    save_data();
 }
 
-() withdraw(slice owner, slice sender, slice in_msg_body) impure inline {
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+() withdraw(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
     int withdrawAmount = in_msg_body~load_uint(256);
     slice addr = in_msg_body~load_msg_addr();
@@ -252,35 +197,31 @@
     send_raw_message(msg, 0);
 }
 
-() update_oracle_node_count(int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
-    ;; throw_unless(rsp::NotOwner, equal_slices(owner, sender));
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+() update_oracle_node_count(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
     int latestOracleNodeCount = in_msg_body~load_uint(32);
-    if (oracleNodeCount == latestOracleNodeCount) {
+    if (storage::oracleNodeCount == latestOracleNodeCount) {
         return ();
     }
 
     throw_unless(rsp::InputDataError, latestOracleNodeCount >= 3);
+    storage::oracleNodeCount = latestOracleNodeCount;
 
-    save_data(latestOracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress);
+    save_data();
 }
 
-() notify_resend_needed(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
+() notify_resend_needed(slice sender, slice in_msg_body) impure inline {
     int messageId = in_msg_body~load_int(128);
     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime);
     int maxDelaySeconds = 60 * 60 * 24;
     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
 
-    (int exists, cell usedMessages) = load_used_messages();
-    
+    (slice receiver, int exists) = findMessage(messageId);
     throw_unless(rsp::MessageNotFound, exists == -1);
-    (slice storedData, int found) = usedMessages.udict_get?(128, messageId);
-    
-    throw_unless(rsp::PermissionDenied, found == -1);
-    slice storedSender = storedData~load_msg_addr();
-    throw_unless(rsp::PermissionDenied, equal_slices(storedSender, sender));
+
+    slice storedReceiver = receiver~load_msg_addr();
+    throw_unless(rsp::PermissionDenied, equal_slices(storedReceiver, sender));
 
     builder logData = begin_cell()
         .store_int(messageId, 128)
@@ -290,32 +231,13 @@
 
     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
 
-    usedMessages~udict_delete?(128, messageId);
-    save_used_messages(usedMessages);
+    delete_message(messageId);
 }
 
-;; () notify_resend_needed(int oracleNodeCount, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice sender, slice in_msg_body) impure inline {
-;;     throw_unless(rsp::PermissionDenied, check_address_in_dic(whiteContractAddress, sender));
-;;     int messageId = in_msg_body~load_int(128);
-
-;;     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime);
-
-;;     int maxDelaySeconds = 60 * 60 * 24;
-;;     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
-
-;;     builder logData = begin_cell()
-;;         .store_int(messageId, 128)
-;;         .store_slice(sender)
-;;         .store_slice(my_address()) 
-;;         .store_int(now(), 64);  
+() update_fee(slice sender, slice in_msg_body) impure inline {
+    load_data();
     
-;;     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
-;; }
-
-() update_fee(int oracleNodeCount, int epochId, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress, slice sender, slice in_msg_body) impure inline {
-    ;; throw_unless(rsp::NotOwner, equal_slices(owner, sender));
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
     int latestForwardFee = in_msg_body~load_uint(32);
     int latestReceiveFee = in_msg_body~load_uint(32);
@@ -325,14 +247,15 @@
     throw_unless(rsp::InputDataError, latestReceiveFee > 0);
     throw_unless(rsp::InputDataError, latestProxyFee > 0);
 
-    save_data(oracleNodeCount, epochId, latestForwardFee, latestReceiveFee, latestProxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress);
+    storage::forwardFee = latestForwardFee;
+    storage::receiveFee = latestReceiveFee;
+    storage::proxyFee = latestProxyFee;
+
+    save_data();
 }
 
-() update_contract_code(slice owner, slice sender, slice in_msg_body) impure {
-    (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
-    ;; (_, _, _, _, _, _, _, _, _, slice multiSigWalletAddress) = load_data();
-    ;; throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+() update_contract_code(slice sender, slice in_msg_body) impure {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
     cell code = in_msg_body~load_ref();
     set_code(code);
@@ -353,102 +276,83 @@
 
     int op = in_msg_body~load_int(32);
     slice sender = cs~load_msg_addr();
+
+    load_data();
+
     ;;
     ;; if (op == op::RecordLog()) {
     ;;     throw_unless(rsp::PermissionDenied, equal_slices(sender, my_address()));
     ;;     ;; for record log
     ;;     return ();
     ;; }
-
-    (int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress) = load_data();
-
+    
     if (op == op::ProxyTransactionToTon) {
-        throw_unless(rsp::FeeToLow, msg_value >= forwardFee);
-        forward_message(oracleNodeCount, whiteOracleAddress, proxyFee, publicKeyDic, sender, in_msg_body);
+        throw_unless(rsp::FeeToLow, msg_value >= storage::forwardFee);
+        forward_message(sender, in_msg_body);
         return ();
     }
 
     if (op == op::ProxyTransactionToOtherChain) {
-        throw_unless(rsp::FeeToLow, msg_value >= receiveFee);
-        receive_message(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress, sender, in_msg_body);
+        throw_unless(rsp::FeeToLow, msg_value >= storage::receiveFee);
+        receive_message(sender, in_msg_body);
         return ();
     }
 
     ;; add ton white contract address
     if (op == op::UpsertWhiteContractAddress) {
-        upsert_white_contract_address(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress, sender, in_msg_body);
+        upsert_white_contract_address(sender, in_msg_body);
         return ();
     }
 
     ;; add white wallet address
     if (op == op::UpsertWhiteOracleAddress) {
-        upsert_white_oracle_address(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress, sender, in_msg_body);
+        upsert_white_oracle_address(sender, in_msg_body);
         return ();
     }
 
     if (op == op::ResendTx) {
-        throw_unless(rsp::FeeToLow, msg_value >= forwardFee);
-        notify_resend_needed(oracleNodeCount, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, sender, in_msg_body);
+        throw_unless(rsp::FeeToLow, msg_value >= storage::forwardFee);
+        notify_resend_needed(sender, in_msg_body);
         return ();
     }
 
     if (op == op::Withdraw) {
-        withdraw(owner, sender, in_msg_body);
+        withdraw(sender, in_msg_body);
         return ();
     }
 
     if (op == op::UpdateOracleNodeCount) {
-        update_oracle_node_count(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress, sender, in_msg_body);
+        update_oracle_node_count(sender, in_msg_body);
         return ();
     }
 
     if (op == op::UpdateCode) {
-        update_contract_code(owner, sender, in_msg_body);
+        update_contract_code(sender, in_msg_body);
         return ();
     }
 
     if (op == op::UpdateFee) {
-        update_fee(oracleNodeCount, epochId, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, multiSigWalletAddress, sender, in_msg_body);
+        update_fee(sender, in_msg_body);
         return ();
     }
 
     throw(rsp::OperateNotMatch);
 }
 
-() save_used_messages(cell usedMessages) impure inline_ref {
-    (int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress) = load_data();
-    
-    set_data(begin_cell()
-        .store_ref(begin_cell()
-            .store_uint(oracleNodeCount, 32)
-            .store_uint(epochId, 64)
-            .store_uint(forwardFee, 32)
-            .store_uint(receiveFee, 32)
-            .store_uint(proxyFee, 32)
-            .store_slice(owner)
-            .end_cell()
-        )
-        .store_dict(whiteOracleAddress)
-        .store_dict(whiteContractAddress)
-        .store_dict(publicKeyDic)
-        .store_dict(usedMessages) ;; recode used messageId
-        .end_cell());
-}
-
 () set_multisig_wallet_address(slice sender, slice in_msg_body) impure {
-    (int oracleNodeCount, int epochId, int forwardFee, int receiveFee, int proxyFee, slice owner, cell whiteOracleAddress, cell whiteContractAddress, cell publicKeyDic, slice multiSigWalletAddress) = load_data();
-    
     slice newMultiSigWalletAddress = in_msg_body~load_msg_addr();
     
     throw_unless(rsp::MultiSigInvalidUpdate, newMultiSigWalletAddress.slice_empty?() == 0);
 
-    if (multiSigWalletAddress.slice_empty?() != 0) {
-        throw_unless(rsp::NotOwner, equal_slices(sender, owner));
+    if (storage::multiSignAddress.slice_empty?() != 0) {
+        throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
     } else {
-        throw_unless(rsp::NotMultiSig, equal_slices(sender, multiSigWalletAddress));
+        throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
     }
 
-    save_data(oracleNodeCount, epochId, forwardFee, receiveFee, proxyFee, owner, whiteOracleAddress, whiteContractAddress, publicKeyDic, newMultiSigWalletAddress);
+    storage::multiSignAddress = newMultiSigWalletAddress;
+
+    save_data();
 }
 
 ;;
@@ -457,9 +361,9 @@
 ;; ruturn -1:true , 0:false
 ;;
 (int) check_contract_address_has_permission(cell contractAddress) method_id {
-    (_, _, _, _, _, _, _, cell whiteContractAddress, _, _) = load_data();  
+    load_data();
     slice address = contractAddress.begin_parse();
-    return check_address_in_dic(whiteContractAddress, address);
+    return check_address_in_dic(storage::whiteContractAddress, address);
 }
 
 ;;
@@ -468,13 +372,13 @@
 ;; ruturn -1:true , 0:false
 ;;
 (int) check_oracle_address_has_permission(cell walletAddress) method_id {
-    (_, _, _, _, _, _, cell whiteWalletAddress, _, _, _) = load_data();
-    return check_address_in_dic(whiteWalletAddress, walletAddress.begin_parse());
+    load_data();
+    return check_address_in_dic(storage::whiteOracleAddress, walletAddress.begin_parse());
 }
 
 (int) get_oracle_node_count() method_id {
-    (int oracleNodeCount, _, _, _, _, _, _, _, _, _) = load_data();
-    return oracleNodeCount;
+    load_data();
+    return (storage::oracleNodeCount);
 }
 
 (int) get_resume_balance() method_id {
@@ -484,7 +388,11 @@
 }
 
 (int, int, int) get_current_fee() method_id {
-    (_, _, int forwardFee, int receiveFee, int proxyFee, _, _, _, _, _) = load_data();
+    load_data();
+    return (storage::forwardFee, storage::receiveFee, storage::proxyFee);
+}
 
-    return (forwardFee, receiveFee, proxyFee);
+(slice) get_multi_sign_address() method_id {
+    load_data();
+    return (storage::multiSignAddress);
 }

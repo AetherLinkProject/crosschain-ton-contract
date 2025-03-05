@@ -1,0 +1,14 @@
+#include "../imports/stdlib.fc";
+
+(cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
+    builder result = begin_cell()
+        .store_int(targetChainId,32)
+        .store_ref(receiver)
+        .store_ref(report);
+    if(~ extraData.null?()){
+        result = result.store_ref(extraData);
+        return result.end_cell();
+    }
+
+    return result.end_cell();
+}
