@@ -11,6 +11,7 @@ const op::UpdateCode = 0x00000008;
 const op::ResendTx = 0x00000009;
 const op::RecordLog = 0x0000000a;
 const op::NotifyResendNeeded = 0x0000000b;
+const op::UpdateMultiSignAddress = 0x0000000c;
 
 ;; declare resend type;
 const resend::AppointTime = 0x01;

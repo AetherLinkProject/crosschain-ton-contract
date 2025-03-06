@@ -19,13 +19,6 @@
     return -1;
 }
 
-(int, cell) load_used_messages() {
-    slice ds = get_data().begin_parse();
-    ds~load_ref(); 
-    cell usedMessages = ds~load_dict();
-    return (usedMessages.dict_empty?() ? 0 : -1, usedMessages);
-}
-
 () validate_multi_sign(int oracleNodeCount, cell publicKeyDic, int reportHash, slice input_body) impure inline_ref {
     cell signDataDic = input_body~load_ref();
     slice signDicSlice = signDataDic.begin_parse();
@@ -218,7 +211,7 @@
     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
 
     (slice receiver, int exists) = findMessage(messageId);
-    throw_unless(rsp::MessageNotFound, exists == -1);
+    throw_unless(rsp::MessageNotFound, exists == 0);
 
     slice storedReceiver = receiver~load_msg_addr();
     throw_unless(rsp::PermissionDenied, equal_slices(storedReceiver, sender));
@@ -235,8 +228,6 @@
 }
 
 () update_fee(slice sender, slice in_msg_body) impure inline {
-    load_data();
-    
     throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
 
     int latestForwardFee = in_msg_body~load_uint(32);
@@ -250,6 +241,18 @@
     storage::forwardFee = latestForwardFee;
     storage::receiveFee = latestReceiveFee;
     storage::proxyFee = latestProxyFee;
+
+    save_data();
+}
+
+() update_multi_sign_address(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    slice newMultiSignAddress = in_msg_body~load_msg_addr();
+    if (equal_slices(newMultiSignAddress,storage::multiSignAddress)){
+        return ();
+    }
+
+    storage::multiSignAddress = newMultiSignAddress;
 
     save_data();
 }
@@ -285,7 +288,7 @@
     ;;     ;; for record log
     ;;     return ();
     ;; }
-    
+
     if (op == op::ProxyTransactionToTon) {
         throw_unless(rsp::FeeToLow, msg_value >= storage::forwardFee);
         forward_message(sender, in_msg_body);
@@ -333,6 +336,11 @@
 
     if (op == op::UpdateFee) {
         update_fee(sender, in_msg_body);
+        return ();
+    }
+
+    if (op == op::UpdateMultiSignAddress){
+        update_multi_sign_address(sender, in_msg_body);
         return ();
     }
 
@@ -390,9 +398,4 @@
 (int, int, int) get_current_fee() method_id {
     load_data();
     return (storage::forwardFee, storage::receiveFee, storage::proxyFee);
-}
-
-(slice) get_multi_sign_address() method_id {
-    load_data();
-    return (storage::multiSignAddress);
 }
