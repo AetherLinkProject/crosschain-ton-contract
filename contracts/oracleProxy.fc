@@ -211,7 +211,7 @@
     throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
 
     (slice receiver, int exists) = findMessage(messageId);
-    throw_unless(rsp::MessageNotFound, exists == 0);
+    throw_unless(rsp::MessageNotFound, exists == -1);
 
     slice storedReceiver = receiver~load_msg_addr();
     throw_unless(rsp::PermissionDenied, equal_slices(storedReceiver, sender));
@@ -246,16 +246,21 @@
 }
 
 () update_multi_sign_address(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
-    slice newMultiSignAddress = in_msg_body~load_msg_addr();
-    if (equal_slices(newMultiSignAddress,storage::multiSignAddress)){
-        return ();
+    slice newMultiSigWalletAddress = in_msg_body~load_msg_addr();
+    
+    throw_unless(rsp::MultiSigInvalidUpdate, newMultiSigWalletAddress.slice_empty?() == 0);
+
+    if (storage::multiSignAddress.slice_empty?() != 0) {
+        throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
+    } else {
+        throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
     }
 
-    storage::multiSignAddress = newMultiSignAddress;
+    storage::multiSignAddress = newMultiSigWalletAddress;
 
     save_data();
 }
+
 
 () update_contract_code(slice sender, slice in_msg_body) impure {
     throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
@@ -345,22 +350,6 @@
     }
 
     throw(rsp::OperateNotMatch);
-}
-
-() set_multisig_wallet_address(slice sender, slice in_msg_body) impure {
-    slice newMultiSigWalletAddress = in_msg_body~load_msg_addr();
-    
-    throw_unless(rsp::MultiSigInvalidUpdate, newMultiSigWalletAddress.slice_empty?() == 0);
-
-    if (storage::multiSignAddress.slice_empty?() != 0) {
-        throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
-    } else {
-        throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
-    }
-
-    storage::multiSignAddress = newMultiSigWalletAddress;
-
-    save_data();
 }
 
 ;;
