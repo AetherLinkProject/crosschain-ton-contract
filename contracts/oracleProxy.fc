@@ -268,6 +268,8 @@
 }
 
 () cancel_update_owner(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+
     (int end_owner, _, int end_code, cell code) = unpack_temp_upgrade(storage::tempUpgrade);
     throw_unless(rsp::InvalidCall, end_owner > 0); 
     storage::tempUpgrade = pack_temp_upgrade(end_code, code, 0, HOLE_ADDRESS);
@@ -276,6 +278,8 @@
 }
 
 () cancel_update_contract_code(slice sender, slice in_msg_body) impure {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+
     ( int end_owner, slice owner, int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
     throw_unless(rsp::InvalidCall, end_code > 0); 
     storage::tempUpgrade = pack_temp_upgrade(0, empty_cell(), end_owner, owner);
@@ -398,6 +402,11 @@
 
     if (op == op::CancelUpdateOwner){
         cancel_update_owner(sender, in_msg_body);
+        return ();
+    }
+
+    if (op == op::CancelUpdateCode){
+        cancel_update_contract_code(sender, in_msg_body);
         return ();
     }
 
