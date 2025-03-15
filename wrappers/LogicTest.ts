@@ -60,7 +60,7 @@ export class LogicTest implements Contract {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.increase, 32)
-                .storeUint(opts.queryID ?? 0, 64)
+                // .storeUint(opts.queryID ?? 0, 64)
                 .storeUint(opts.increaseBy, 32)
                 .endCell(),
         });

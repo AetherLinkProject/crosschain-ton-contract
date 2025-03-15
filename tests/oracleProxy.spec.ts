@@ -53,12 +53,17 @@ describe('oracleProxy', () => {
                     receiveFee: BigInt(10000000),
                     proxyFee: BigInt(10000000),
                     owner: deployer.getSender().address,
-                    multiSignAddress: deployer.getSender().address,
+                    tempUpgrade: beginCell()
+                        .storeUint(0, 64)
+                        .storeUint(0, 64)
+                        .storeAddress(null)
+                        .storeRef(beginCell().endCell())
+                        .endCell(),
                     whiteWalletAddress: Dictionary.empty<bigint, Slice>(),
                     whiteContractAddress: Dictionary.empty<bigint, Slice>(),
                     publicKeyDic: Dictionary.empty<bigint, Slice>(Dictionary.Keys.BigInt(32)),
                     usedMessages: Dictionary.empty<bigint, Slice>(),
-                    message_record_dic_bucket: Dictionary.empty(Dictionary.Keys.BigInt(16), Dictionary.Values.Cell())
+                    messageRecordDicBucket: Dictionary.empty(Dictionary.Keys.BigInt(16), Dictionary.Values.Cell())
                 },
                 oracleProxyCode
             )
@@ -100,8 +105,6 @@ describe('oracleProxy', () => {
             whiteContractAddress: newAddress,
             amount: toNano("0.05")
         });
-
-        console.log("only owner can send message", addContractAddressResult);
 
         expect(addContractAddressResult.transactions).toHaveTransaction({
             from: otherWallet.getSender().address,
@@ -227,7 +230,7 @@ describe('oracleProxy', () => {
             delayTime: 12,
             fee: toNano("0.2"),
         });
-        console.log(result);
+        // console.log(result);
     });
 
     it("sendCode", async () => {
@@ -242,7 +245,7 @@ describe('oracleProxy', () => {
             delayTime: 12,
             fee: toNano("0.2"),
         });
-        console.log(sendCodeResult);
+        // console.log(sendCodeResult);
     });
 
     it("withdraw", async () => {

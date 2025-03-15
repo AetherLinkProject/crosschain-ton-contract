@@ -34,7 +34,7 @@ global cell inputData;
     );
 }
 
-cell assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
+(cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData) impure {
     builder result = begin_cell()
         .store_int(targetChainId,32)
         .store_ref(receiver)

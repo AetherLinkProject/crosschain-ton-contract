@@ -120,7 +120,7 @@
 }
 
 () upsert_white_contract_address(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
     if (storage::whiteContractAddress.dict_empty?()) {
         storage::whiteContractAddress = new_dict();
@@ -135,7 +135,7 @@
 }
 
 () upsert_white_oracle_address(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
     if (storage::whiteOracleAddress.dict_empty?()) {
         storage::whiteOracleAddress = new_dict();
@@ -169,7 +169,7 @@
 }
 
 () withdraw(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
     int withdrawAmount = in_msg_body~load_uint(256);
     slice addr = in_msg_body~load_msg_addr();
@@ -190,7 +190,7 @@
 }
 
 () update_oracle_node_count(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
     int latestOracleNodeCount = in_msg_body~load_uint(32);
     if (storage::oracleNodeCount == latestOracleNodeCount) {
@@ -230,7 +230,7 @@
 }
 
 () update_fee(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
     int latestForwardFee = in_msg_body~load_uint(32);
     int latestReceiveFee = in_msg_body~load_uint(32);
@@ -247,48 +247,73 @@
     save_data();
 }
 
-;; () update_multi_sign_address(slice sender, slice in_msg_body) impure inline {
-;;     slice newMultiSignAddress = in_msg_body~load_msg_addr();
-    
-;;     throw_unless(rsp::MultiSigInvalidUpdate, newMultiSignAddress.slice_empty?() == 0);
-   
-;;     if (storage::multiSignAddress.slice_empty?() != 0) {
-;;         throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
-;;     } else {
-;;         throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
-;;     }
+() init_update_owner(slice sender, slice in_msg_body) impure inline {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
 
-;;     storage::multiSignAddress = newMultiSignAddress;
-
-;;     save_data();
-;; }
-
-() update_owner(slice sender, slice in_msg_body) impure inline {
-    slice newMultiSignAddress = in_msg_body~load_msg_addr();
-    
-    throw_unless(rsp::MultiSigInvalidUpdate, newMultiSignAddress.slice_empty?() == 0);
-   
-    if (storage::multiSignAddress.slice_empty?() != 0) {
-        throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
-    } else {
-        throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
-    }
-
-    storage::multiSignAddress = newMultiSignAddress;
+    (int end_owner, _, int end_code, cell new_code) = unpack_temp_upgrade(storage::tempUpgrade);
+    throw_unless(rsp::InvalidCall, end_owner == 0); ;; upgrade already in progress
+    storage::tempUpgrade = pack_temp_upgrade(end_code, new_code, now() + ONEMINUTESFORSECONDS, in_msg_body~load_msg_addr());
 
     save_data();
 }
 
-() cancel_update_owner() impure inline {
+() init_update_contract_code(slice sender, slice in_msg_body) impure {
+    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+
+    (int end_owner, slice owner,int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
+    throw_unless(rsp::InvalidCall, end_code == 0); ;; upgrade already in progress
+    storage::tempUpgrade = pack_temp_upgrade(now() + ONEMINUTESFORSECONDS,  in_msg_body~load_ref(), end_owner, owner);
     
-    save_storage();
+    save_data();
 }
 
-() update_contract_code(slice sender, slice in_msg_body) impure {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+() cancel_update_owner(slice sender, slice in_msg_body) impure inline {
+    (int end_owner, _, int end_code, cell code) = unpack_temp_upgrade(storage::tempUpgrade);
+    throw_unless(rsp::InvalidCall, end_owner > 0); 
+    storage::tempUpgrade = pack_temp_upgrade(end_code, code, 0, HOLE_ADDRESS);
 
-    cell code = in_msg_body~load_ref();
-    set_code(code);
+    save_data();
+}
+
+() cancel_update_contract_code(slice sender, slice in_msg_body) impure {
+    ( int end_owner, slice owner, int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
+    throw_unless(rsp::InvalidCall, end_code > 0); 
+    storage::tempUpgrade = pack_temp_upgrade(0, empty_cell(), end_owner, owner);
+
+    save_data();
+}
+
+()finalize_upgrades() impure {
+    (int end_owner, slice new_owner, int end_code, cell new_code) = unpack_temp_upgrade(storage::tempUpgrade);
+    throw_unless(rsp::InvalidCall, (end_code + end_owner) > 0); ;; make sure at least one upgrade process is in progress
+
+    if ((end_code > 0) & (now() >= end_code)) {
+        set_code(new_code);
+        emit_log_simple(op::UpdateCode,
+            begin_cell()
+                .store_uint(end_code,64)
+                .store_ref(new_code)
+                .end_cell()
+                ,1);
+        end_code = 0;
+        new_code = empty_cell();
+    }
+
+    if ((end_owner > 0) & (now() >= end_owner)) {
+        storage::owner = new_owner;
+        emit_log_simple(op::UpdateOwner,
+            begin_cell()
+                    .store_uint(end_owner,64)
+                    .store_slice(new_owner)
+                    .end_cell()
+                ,1);
+        end_owner = 0;
+        new_owner = HOLE_ADDRESS;
+    }
+
+    storage::tempUpgrade = pack_temp_upgrade(end_code, new_code, end_owner, new_owner);
+
+    save_data();
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -357,7 +382,7 @@
     }
 
     if (op == op::UpdateCode) {
-        update_contract_code(sender, in_msg_body);
+        init_update_contract_code(sender, in_msg_body);
         return ();
     }
 
@@ -367,12 +392,17 @@
     }
 
     if (op == op::UpdateOwner){
-        update_owner(sender, in_msg_body);
+        init_update_owner(sender, in_msg_body);
         return ();
     }
 
     if (op == op::CancelUpdateOwner){
         cancel_update_owner(sender, in_msg_body);
+        return ();
+    }
+
+    if (op == op::FinalizeUpgrades) {
+        finalize_upgrades();
         return ();
     }
 

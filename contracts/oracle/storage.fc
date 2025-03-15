@@ -6,13 +6,13 @@ global int storage::forwardFee;
 global int storage::receiveFee;
 global int storage::proxyFee;
 global slice storage::owner;
-global slice storage::tempUpgrade;
+global cell storage::tempUpgrade;
 
 global cell storage::whiteOracleAddress;
 global cell storage::whiteContractAddress;
 global cell storage::publicKeyDic;
 global cell storage::usedMessages;
-global cell storage::message_record_dic_bucket;
+global cell storage::messageRecordDicBucket;
 
 () load_data() impure inline {
     slice ds = get_data().begin_parse();
@@ -23,13 +23,13 @@ global cell storage::message_record_dic_bucket;
     storage::receiveFee = commonInfo~load_uint(32);
     storage::proxyFee = commonInfo~load_uint(32);
     storage::owner = commonInfo~load_msg_addr();
-    storage::tempUpgrade = commonInfo~load_msg_addr();
+    storage::tempUpgrade = commonInfo~load_ref();
 
     storage::whiteOracleAddress = ds~load_dict();
     storage::whiteContractAddress = ds~load_dict();
     storage::publicKeyDic = ds~load_dict();
     storage::usedMessages = ds~load_dict();
-    storage::message_record_dic_bucket = ds~load_dict();
+    storage::messageRecordDicBucket = ds~load_dict();
 }
 
 () save_data() impure inline {
@@ -41,12 +41,12 @@ global cell storage::message_record_dic_bucket;
             .store_uint(storage::receiveFee, 32)
             .store_uint(storage::proxyFee, 32)
             .store_slice(storage::owner)
-            .store_slice(storage::tempUpgrade)
+            .store_ref(storage::tempUpgrade)
             .end_cell())
         .store_dict(storage::whiteOracleAddress)
         .store_dict(storage::whiteContractAddress)
         .store_dict(storage::publicKeyDic)
         .store_dict(storage::usedMessages)
-        .store_dict(storage::message_record_dic_bucket)
+        .store_dict(storage::messageRecordDicBucket)
         .end_cell());
 }

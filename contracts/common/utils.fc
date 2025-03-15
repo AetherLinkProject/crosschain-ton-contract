@@ -25,22 +25,20 @@ const EXPIRE_TIME = 86400;
 const ONEMINUTES = 1;
 const TENMINUTES = 10;
 
-(cell) pack_temp_upgrade(int end_code, cell code, int end_owner, slice owner,int end_admin,slice admin) inline {
+(cell) pack_temp_upgrade(int end_code, cell code, int end_owner, slice owner) inline {
     cell data = begin_cell()
-        .store_uint(end_code, 64)
         .store_uint(end_owner, 64)
-        .store_uint(end_admin, 64)
+        .store_uint(end_code, 64)
         .store_slice(owner)
         .store_ref(code)
-        .store_slice(admin)
     .end_cell();
     return data;
 }
 
-(int, cell, int, slice, int, slice) unpack_temp_upgrade(cell c_data) inline {
+(int, slice, int, cell) unpack_temp_upgrade(cell c_data) inline {
     slice s_data = c_data.begin_parse();
-    (int end_code, int end_owner, int end_admin, slice owner, cell code,slice admin) = (s_data~load_uint(64), s_data~load_uint(64),s_data~load_uint(64), s_data~load_msg_addr(), s_data~load_ref(),s_data~load_msg_addr());
-    return (end_code, code, end_owner, owner, end_admin,admin);
+    (int end_owner, int end_code, slice owner, cell code) = (s_data~load_uint(64), s_data~load_uint(64), s_data~load_msg_addr(), s_data~load_ref());
+    return (end_owner, owner, end_code, code);
 }
 
 (int) get_workchain(slice address) inline {
