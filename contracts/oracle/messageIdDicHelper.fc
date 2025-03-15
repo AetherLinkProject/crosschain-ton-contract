@@ -10,6 +10,8 @@
 }
 
 (int) store_message(int timestamp, int message_id, slice receiver) inline {
+    load_data();
+
     slice messageKey = begin_cell().store_int(message_id, 128).end_cell().begin_parse();
     (slice storedMessageValue, int found) = dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
     if (found) {
@@ -27,6 +29,7 @@
     }
 
     clear_expired_message();
+    save_data();
 
     return 0;
 }
@@ -53,7 +56,5 @@
     slice messageKey = begin_cell().store_int(messageId, 128).end_cell().begin_parse();
     (storage::usedMessages, int deleted) = dict_delete?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
 
-    save_data();
-    
     return deleted; 
 }

@@ -1,6 +1,5 @@
 #include "oracle/const.fc";
 #include "imports/stdlib.fc";
-#include "oracle/utility.fc";
 
 const op::increase = "op::increase"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
 
@@ -33,6 +32,19 @@ global cell inputData;
             .store_ref(inputData)
             .end_cell()
     );
+}
+
+cell assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData){
+    builder result = begin_cell()
+        .store_int(targetChainId,32)
+        .store_ref(receiver)
+        .store_ref(report);
+    if(~ extraData.null?()){
+        result = result.store_ref(extraData);
+        return result.end_cell();
+    }
+
+    return result.end_cell();
 }
 
 ;; recv_internal is the main function of the contract and is called when it receives a message from other contracts

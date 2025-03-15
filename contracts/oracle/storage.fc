@@ -6,7 +6,8 @@ global int storage::forwardFee;
 global int storage::receiveFee;
 global int storage::proxyFee;
 global slice storage::owner;
-global slice storage::multiSignAddress;
+global slice storage::tempUpgrade;
+
 global cell storage::whiteOracleAddress;
 global cell storage::whiteContractAddress;
 global cell storage::publicKeyDic;
@@ -22,7 +23,7 @@ global cell storage::message_record_dic_bucket;
     storage::receiveFee = commonInfo~load_uint(32);
     storage::proxyFee = commonInfo~load_uint(32);
     storage::owner = commonInfo~load_msg_addr();
-    storage::multiSignAddress = commonInfo~load_msg_addr(); 
+    storage::tempUpgrade = commonInfo~load_msg_addr();
 
     storage::whiteOracleAddress = ds~load_dict();
     storage::whiteContractAddress = ds~load_dict();
@@ -40,7 +41,7 @@ global cell storage::message_record_dic_bucket;
             .store_uint(storage::receiveFee, 32)
             .store_uint(storage::proxyFee, 32)
             .store_slice(storage::owner)
-            .store_slice(storage::multiSignAddress)
+            .store_slice(storage::tempUpgrade)
             .end_cell())
         .store_dict(storage::whiteOracleAddress)
         .store_dict(storage::whiteContractAddress)

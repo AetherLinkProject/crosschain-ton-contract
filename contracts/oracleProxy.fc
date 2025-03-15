@@ -1,7 +1,6 @@
 #include "common/stdlib.fc";
 #include "common/utils.fc";
 #include "oracle/const.fc";
-#include "oracle/utility.fc";
 #include "oracle/messageIdDicHelper.fc";
 #include "oracle/storage.fc";
 
@@ -207,8 +206,10 @@
 () notify_resend_needed(slice sender, slice in_msg_body) impure inline {
     int messageId = in_msg_body~load_int(128);
     throw_unless(rsp::InputDataError, in_msg_body~load_int(8) == resend::AppointTime);
+    
+    int delayTime = in_msg_body~load_int(32);
     int maxDelaySeconds = 60 * 60 * 24;
-    throw_unless(rsp::InputDataError, maxDelaySeconds > in_msg_body~load_int(32));
+    throw_unless(rsp::InputDataError, maxDelaySeconds > delayTime);
 
     (slice receiver, int exists) = findMessage(messageId);
     throw_unless(rsp::MessageNotFound, exists == -1);
@@ -220,7 +221,8 @@
         .store_int(messageId, 128)
         .store_slice(sender)
         .store_slice(my_address())  
-        .store_int(now(), 64);  
+        .store_int(now(), 64)
+        .store_int(delayTime, 32);
 
     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
 
@@ -245,22 +247,42 @@
     save_data();
 }
 
-() update_multi_sign_address(slice sender, slice in_msg_body) impure inline {
-    slice newMultiSigWalletAddress = in_msg_body~load_msg_addr();
+;; () update_multi_sign_address(slice sender, slice in_msg_body) impure inline {
+;;     slice newMultiSignAddress = in_msg_body~load_msg_addr();
     
-    throw_unless(rsp::MultiSigInvalidUpdate, newMultiSigWalletAddress.slice_empty?() == 0);
+;;     throw_unless(rsp::MultiSigInvalidUpdate, newMultiSignAddress.slice_empty?() == 0);
+   
+;;     if (storage::multiSignAddress.slice_empty?() != 0) {
+;;         throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
+;;     } else {
+;;         throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
+;;     }
 
+;;     storage::multiSignAddress = newMultiSignAddress;
+
+;;     save_data();
+;; }
+
+() update_owner(slice sender, slice in_msg_body) impure inline {
+    slice newMultiSignAddress = in_msg_body~load_msg_addr();
+    
+    throw_unless(rsp::MultiSigInvalidUpdate, newMultiSignAddress.slice_empty?() == 0);
+   
     if (storage::multiSignAddress.slice_empty?() != 0) {
         throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
     } else {
         throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
     }
 
-    storage::multiSignAddress = newMultiSigWalletAddress;
+    storage::multiSignAddress = newMultiSignAddress;
 
     save_data();
 }
 
+() cancel_update_owner() impure inline {
+    
+    save_storage();
+}
 
 () update_contract_code(slice sender, slice in_msg_body) impure {
     throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::multiSignAddress));
@@ -344,8 +366,13 @@
         return ();
     }
 
-    if (op == op::UpdateMultiSignAddress){
-        update_multi_sign_address(sender, in_msg_body);
+    if (op == op::UpdateOwner){
+        update_owner(sender, in_msg_body);
+        return ();
+    }
+
+    if (op == op::CancelUpdateOwner){
+        cancel_update_owner(sender, in_msg_body);
         return ();
     }
 
