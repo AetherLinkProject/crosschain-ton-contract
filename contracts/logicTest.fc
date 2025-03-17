@@ -19,7 +19,6 @@ global cell inputData;
     ctx_counter = ds~load_uint(32);
     inputData = ds~load_ref();
 
-
     ds.end_parse();
 }
 

@@ -22,7 +22,6 @@
     cell signDataDic = input_body~load_ref();
     slice signDicSlice = signDataDic.begin_parse();
     cell signDic = signDicSlice~load_dict();
-
     throw_unless(rsp::InputDataError, signDicSlice.slice_empty?());
 
     (int publicIndex, slice signatureRef, int flag) = signDic.udict_get_min?(256);
@@ -61,7 +60,7 @@
     cell body = in_msg_body~load_ref();
     int reportHash = begin_cell().store_int(messageId, 128)
         .store_slice(addr)
-        .store_uint(timestamp)
+        .store_uint(timestamp,64)
         .store_ref(body)
         .end_cell()
         .cell_hash();

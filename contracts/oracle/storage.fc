@@ -30,6 +30,7 @@ global cell storage::messageRecordDicBucket;
     storage::publicKeyDic = ds~load_dict();
     storage::usedMessages = ds~load_dict();
     storage::messageRecordDicBucket = ds~load_dict();
+    ds.end_parse();
 }
 
 () save_data() impure inline {

@@ -16,6 +16,7 @@ global cell storage::order_code;
     storage::threshold = ds~load_index();
     storage::signers_num = ds~load_index();
     storage::order_code = ds~load_ref();
+    ds.end_parse();
 }
 
 () save_storage() impure inline {
