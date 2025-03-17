@@ -33,7 +33,7 @@
         int publicKey = publicKeySlice~load_uint(256);
         slice signature = signatureRef~load_ref().begin_parse();
         signature.end_parse();
-        
+
         if (check_signature(reportHash, signature, publicKey)) {
             signCount = signCount + 1;
         }
@@ -51,16 +51,20 @@
     int messageId = in_msg_body~load_int(128);
     int timestamp = in_msg_body~load_uint(64); 
     throw_unless(rsp::ExpiredMessage, timestamp + EXPIRE_TIME > now());
+    
+    slice oracleAddress = in_msg_body~load_msg_addr();
+    throw_unless(rsp::InputDataError, equal_slices(oracleAddress, my_address()));
 
-    slice addr = in_msg_body~load_msg_addr();
-    throw_unless(rsp::InputDataError, ~ equal_slices(addr, my_address()));
+    slice receiver = in_msg_body~load_msg_addr();
+    throw_unless(rsp::InputDataError, ~ equal_slices(receiver, my_address()));
 
-    int success = store_message(timestamp, messageId, addr);
+    int success = store_message(timestamp, messageId, receiver);
     throw_unless(rsp::AlreadyRecord, success == 0);
 
     cell body = in_msg_body~load_ref();
     int reportHash = begin_cell().store_int(messageId, 128)
-        .store_slice(addr)
+        .store_slice(oracleAddress)
+        .store_slice(receiver)
         .store_uint(timestamp,64)
         .store_ref(body)
         .end_cell()
@@ -75,7 +79,7 @@
 
     cell msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_slice(addr)
+        .store_slice(receiver)
         .store_coins(storage::proxyFee)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         .store_uint(op::ProxyTransactionToTon, 32)
