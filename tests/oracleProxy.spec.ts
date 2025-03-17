@@ -109,7 +109,7 @@ describe('oracleProxy', () => {
         expect(addContractAddressResult.transactions).toHaveTransaction({
             from: otherWallet.getSender().address,
             to: oracleProxy.address,
-            exitCode: 300,
+            exitCode: 100,
             success: false,
             aborted: true,
         })
