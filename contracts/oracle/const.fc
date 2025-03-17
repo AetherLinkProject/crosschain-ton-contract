@@ -38,10 +38,3 @@ const rsp::MessageNotFound = 110;
 const rsp::ExpiredMessage = 111;
 const rsp::AlreadyRecord = 112;
 const rsp::InvalidCall = 113;
-
-;; MultiSigWallet
-const rsp::NotMultiSig = 300;  
-const rsp::MultiSigAddressEmpty = 301; 
-const rsp::MultiSigInvalidUpdate = 302; 
-const rsp::MultiSigNotAuthorized = 303; 
-

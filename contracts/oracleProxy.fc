@@ -61,6 +61,7 @@
     cell body = in_msg_body~load_ref();
     int reportHash = begin_cell().store_int(messageId, 128)
         .store_slice(addr)
+        .store_uint(timestamp)
         .store_ref(body)
         .end_cell()
         .cell_hash();
@@ -120,7 +121,7 @@
 }
 
 () upsert_white_contract_address(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     if (storage::whiteContractAddress.dict_empty?()) {
         storage::whiteContractAddress = new_dict();
@@ -135,7 +136,7 @@
 }
 
 () upsert_white_oracle_address(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     if (storage::whiteOracleAddress.dict_empty?()) {
         storage::whiteOracleAddress = new_dict();
@@ -169,7 +170,7 @@
 }
 
 () withdraw(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     int withdrawAmount = in_msg_body~load_uint(256);
     slice addr = in_msg_body~load_msg_addr();
@@ -190,7 +191,7 @@
 }
 
 () update_oracle_node_count(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     int latestOracleNodeCount = in_msg_body~load_uint(32);
     if (storage::oracleNodeCount == latestOracleNodeCount) {
@@ -227,10 +228,12 @@
     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
 
     delete_message(messageId);
+
+    save_data();
 }
 
 () update_fee(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     int latestForwardFee = in_msg_body~load_uint(32);
     int latestReceiveFee = in_msg_body~load_uint(32);
@@ -248,27 +251,27 @@
 }
 
 () init_update_owner(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     (int end_owner, _, int end_code, cell new_code) = unpack_temp_upgrade(storage::tempUpgrade);
-    throw_unless(rsp::InvalidCall, end_owner == 0); ;; upgrade already in progress
+    throw_unless(rsp::InvalidCall, end_owner == 0); ;; upgrade already in progress, end_owner == 0 => no owner need to update| end_owner != 0 => new owner is waiting for upgrade
     storage::tempUpgrade = pack_temp_upgrade(end_code, new_code, now() + ONEMINUTESFORSECONDS, in_msg_body~load_msg_addr());
 
     save_data();
 }
 
 () init_update_contract_code(slice sender, slice in_msg_body) impure {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     (int end_owner, slice owner,int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
-    throw_unless(rsp::InvalidCall, end_code == 0); ;; upgrade already in progress
+    throw_unless(rsp::InvalidCall, end_code == 0); ;; upgrade already in progress,  end_code == 0 => no code need to update| end_code != 0 => new code is waiting for upgrade
     storage::tempUpgrade = pack_temp_upgrade(now() + ONEMINUTESFORSECONDS,  in_msg_body~load_ref(), end_owner, owner);
     
     save_data();
 }
 
 () cancel_update_owner(slice sender, slice in_msg_body) impure inline {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     (int end_owner, _, int end_code, cell code) = unpack_temp_upgrade(storage::tempUpgrade);
     throw_unless(rsp::InvalidCall, end_owner > 0); 
@@ -278,7 +281,7 @@
 }
 
 () cancel_update_contract_code(slice sender, slice in_msg_body) impure {
-    throw_unless(rsp::NotMultiSig, equal_slices(sender, storage::owner));
+    throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     ( int end_owner, slice owner, int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
     throw_unless(rsp::InvalidCall, end_code > 0); 
