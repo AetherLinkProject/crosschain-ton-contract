@@ -58,6 +58,8 @@
 
     slice receiver = context~load_msg_addr();
     throw_unless(rsp::InputDataError, ~ equal_slices(receiver, my_address()));
+    
+    context.end_parse();
 
     int success = store_message(timestamp, messageId, receiver);
     throw_unless(rsp::AlreadyRecord, success == 0);
