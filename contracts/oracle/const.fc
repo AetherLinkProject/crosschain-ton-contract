@@ -13,8 +13,8 @@ const op::RecordLog = 0x0000000a;
 const op::NotifyResendNeeded = 0x0000000b;
 const op::UpdateOwner = 0x0000000c;
 const op::CancelUpdateOwner = 0x0000000d;
-const op::CancelUpdateCode = 0x0000000d;
-const op::FinalizeUpgrades = 0x0000000e;
+const op::CancelUpdateCode = 0x0000000e;
+const op::FinalizeUpgrades = 0x0000010;
 
 ;; declare resend type;
 const resend::AppointTime = 0x01;

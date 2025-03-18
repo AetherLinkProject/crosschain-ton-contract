@@ -27,22 +27,31 @@ export type OracleProxyConfig = {
 };
 
 export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
-    let commonInfo = beginCell()
-        .storeInt(config.oracleNodeCount, 32)
+    let clusterInfo = beginCell()
         .storeInt(config.epochId, 64)
+        .storeInt(config.oracleNodeCount, 32)
+        .storeDict(config.whiteWalletAddress)
+        .storeDict(config.publicKeyDic)
+        .endCell();
+
+    let commonInfo = beginCell()
         .storeInt(config.forwardFee, 32)
         .storeInt(config.receiveFee, 32)
         .storeInt(config.proxyFee, 32)
         .storeAddress(config.owner)
-        .storeRef(config.tempUpgrade)
-        .endCell();
-    return beginCell()
-        .storeRef(commonInfo)
         .storeDict(config.whiteWalletAddress)
-        .storeDict(config.whiteContractAddress)
-        .storeDict(config.publicKeyDic)
+        .endCell();
+        
+    let messageInfo = beginCell()
         .storeDict(config.usedMessages)
         .storeDict(config.messageRecordDicBucket)
+        .endCell();
+
+    return beginCell()
+        .storeRef(clusterInfo)
+        .storeRef(commonInfo)
+        .storeRef(messageInfo)
+        .storeRef(config.tempUpgrade)
         .endCell();
 }
 
@@ -56,6 +65,7 @@ export const OracleProxyOpcodes = {
     SetFee: 7,
     SetCode: 8,
     ResendTx: 9,
+    CancelUpdateCode: 15,
 };
 
 export type ContractInit = {
@@ -168,21 +178,30 @@ export class OracleProxy implements Contract {
         })
 
     }
+
     async sendToTonContract(
         provider: ContractProvider,
         via: Sender,
         opts: {
             messageId: bigint,
-            contractAddress: Address;
+            receiver: Address;
+            oracleAddress: Address;
+            timestamp: bigint;
             data: Cell;
             multiSign: Dictionary<bigint, Cell>,
             amount: bigint;
         }
     ) {
+        let context = beginCell()
+            .storeInt(opts.messageId, 128)
+            .storeUint(opts.timestamp, 64)
+            .storeAddress(opts.oracleAddress)
+            .storeAddress(opts.receiver)
+            .endCell();
+
         let body = beginCell()
             .storeUint(OracleProxyOpcodes.ProxyAelfToTon, 32)
-            .storeInt(opts.messageId, 128)
-            .storeAddress(opts.contractAddress)
+            .storeRef(context)
             .storeRef(opts.data)
             .storeRef(new Builder().storeDict<bigint, Cell>(opts.multiSign).endCell())
             .endCell();
@@ -263,6 +282,20 @@ export class OracleProxy implements Contract {
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.SetCode, 32)
                 .storeRef(opts.code)
+                .endCell(),
+        })
+    }
+
+    async cancelSetCode(
+        provider: ContractProvider,
+        via: Sender,
+        fee: bigint
+    ) {
+        await provider.internal(via, {
+            value: fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.CancelUpdateCode, 32)
                 .endCell(),
         })
     }
