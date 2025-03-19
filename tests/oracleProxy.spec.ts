@@ -1,16 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import {
-    Address,
-    beginCell, BitString,
-    Cell,
-    Dictionary, DictionaryValue,
-    Slice,
-    toNano, TupleBuilder,
-} from '@ton/core';
-
+import { Address, beginCell, Cell, Dictionary, Slice, toNano, TupleBuilder } from '@ton/core';
 import { KeyPair, mnemonicNew, sign } from '@ton/crypto';
 import { WalletContractV4 } from "@ton/ton";
-import { OracleProxy, OracleProxyOpcodes } from '../wrappers/OracleProxy';
+import { OracleProxy } from '../wrappers/OracleProxy';
 import { LogicTest, Opcodes } from '../wrappers/LogicTest';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
@@ -138,14 +130,10 @@ describe('oracle', () => {
             // add white wallet address success
             const checkContractAddressResult = await oracleProxy.getWhiteWalletAddress(keyPairWalletList[0].address);
             expect(checkContractAddressResult).toEqual(BigInt(-1));
-            console.log(`${keyPairWalletList[0].address}`, checkContractAddressResult);
-            // var pkresult = await oracleProxy.getOraclePublicKey(BigInt(0));
 
             //  white wallet address not exist
             const notExistContractAddress = await oracleProxy.getWhiteWalletAddress(randomAddress());
             expect(notExistContractAddress).toEqual(BigInt(0))
-            console.log(notExistContractAddress);
-
 
             // delete oracle node
             await oracleProxy.sendUpsertWhiteOracleAddress(deployer.getSender(), {
@@ -211,7 +199,6 @@ describe('oracle', () => {
 
     describe('update contract', () => {
         it("sendCode", async () => {
-            await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
             var sendCodeResult = await oracleProxy.sendSetCode(deployer.getSender(), {
                 fee: toNano("0.2"),
                 code: logicTestCode
@@ -221,6 +208,152 @@ describe('oracle', () => {
                 success: true,
                 aborted: false,
             })
+        });
+
+        it("transfer owner", async () => {
+            var sendTransferOwnerResult = await oracleProxy.sendTransferOwner(deployer.getSender(), {
+                fee: toNano("0.2"),
+                owner: randomAddress()
+            });
+
+            expect(sendTransferOwnerResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+        });
+
+        it("cancel update code", async () => {
+            var sendCodeResult = await oracleProxy.sendSetCode(deployer.getSender(), {
+                fee: toNano("0.2"),
+                code: logicTestCode
+            });
+
+            expect(sendCodeResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            var cancelResult = await oracleProxy.sendCancelSetCode(deployer.getSender(), {
+                fee: toNano("0.2"),
+            });
+
+            expect(cancelResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+        });
+
+        it("cancel transfer owner", async () => {
+            var sendTransferOwnerResult = await oracleProxy.sendTransferOwner(deployer.getSender(), {
+                fee: toNano("0.2"),
+                owner: randomAddress()
+            });
+
+            expect(sendTransferOwnerResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            var cancelResult = await oracleProxy.sendCancelTransferOwner(deployer.getSender(), {
+                fee: toNano("0.2"),
+            });
+
+            expect(cancelResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+        });
+
+        it("cancel update code with over time", async () => {
+            var sendCodeResult = await oracleProxy.sendSetCode(deployer.getSender(), {
+                fee: toNano("0.2"),
+                code: logicTestCode
+            });
+
+            expect(sendCodeResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            jest.useFakeTimers();
+            jest.advanceTimersByTime(60000);
+
+            var cancelResult = await oracleProxy.sendCancelSetCode(deployer.getSender(), {
+                fee: toNano("0.2"),
+            });
+
+            expect(cancelResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            jest.useRealTimers();
+        });
+
+        it("update with finalized", async () => {
+            var ownerAddressRaw = await oracleProxy.getOwner();
+            console.log(`current address ${ownerAddressRaw}`)
+
+            const newOwnerAddr = randomAddress();
+            console.log(`new owner address ${newOwnerAddr}`)
+
+            var sendTransferOwnerResult = await oracleProxy.sendTransferOwner(deployer.getSender(), {
+                fee: toNano("0.2"),
+                owner: newOwnerAddr
+            });
+
+            expect(sendTransferOwnerResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            jest.useFakeTimers();
+            jest.advanceTimersByTime(60000);
+
+            var finalizedResult = await oracleProxy.sendFinalized(deployer.getSender(), {
+                fee: toNano("0.2"),
+            });
+
+            expect(finalizedResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            var ownerAddressFinalized = await oracleProxy.getOwner();
+            expect(newOwnerAddr.equals(ownerAddressFinalized)).toBe(true);
+
+            jest.useRealTimers();
+        });
+
+        it("No release time", async () => {
+            var ownerAddressBeforeFinalized = await oracleProxy.getOwner();
+            console.log(`ownerAddress before finalized ${ownerAddressBeforeFinalized}`)
+            const newOwnerAddr = randomAddress();
+            console.log(`new owner address ${newOwnerAddr}`)
+
+            var sendTransferOwnerResult = await oracleProxy.sendTransferOwner(deployer.getSender(), {
+                fee: toNano("0.2"),
+                owner: newOwnerAddr
+            });
+
+            expect(sendTransferOwnerResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            var finalizedResult = await oracleProxy.sendFinalized(deployer.getSender(), {
+                fee: toNano("0.2"),
+            });
+
+            expect(finalizedResult.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
+
+            var ownerAddressFinalized = await oracleProxy.getOwner();
+            console.log(`current address ${ownerAddressFinalized}`)
+            expect(newOwnerAddr.equals(ownerAddressFinalized)).toBe(false);
+            expect(ownerAddressBeforeFinalized.equals(ownerAddressFinalized)).toBe(true);
         });
     })
 
@@ -477,4 +610,8 @@ function assemble_unsign_data(messageId: bigint, timestamp: bigint, oracleAddr: 
         .storeAddress(contractAddr)
         .storeRef(data)
         .endCell();
+}
+
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }

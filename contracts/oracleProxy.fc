@@ -465,3 +465,8 @@
     load_data();
     return (storage::forwardFee, storage::receiveFee, storage::proxyFee);
 }
+
+(slice) get_current_owner() method_id {
+    load_data();
+    return (storage::owner);
+}

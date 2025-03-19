@@ -41,7 +41,7 @@ export function oracleProxyConfigToCell(config: OracleProxyConfig): Cell {
         .storeAddress(config.owner)
         .storeDict(config.whiteWalletAddress)
         .endCell();
-        
+
     let messageInfo = beginCell()
         .storeDict(config.usedMessages)
         .storeDict(config.messageRecordDicBucket)
@@ -65,7 +65,10 @@ export const OracleProxyOpcodes = {
     SetFee: 7,
     SetCode: 8,
     ResendTx: 9,
-    CancelUpdateCode: 15,
+    TransferOwner: 12,
+    CancelTransferOwner: 13,
+    CancelUpdateCode: 14,
+    Finalized: 15,
 };
 
 export type ContractInit = {
@@ -286,16 +289,64 @@ export class OracleProxy implements Contract {
         })
     }
 
-    async cancelSetCode(
+    async sendTransferOwner(
         provider: ContractProvider,
         via: Sender,
-        fee: bigint
-    ) {
+        opts: {
+            fee: bigint;
+            owner: Address;
+        }) {
         await provider.internal(via, {
-            value: fee,
+            value: opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.TransferOwner, 32)
+                .storeAddress(opts.owner)
+                .endCell(),
+        })
+    }
+
+    async sendCancelSetCode(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            fee: bigint;
+        }) {
+        await provider.internal(via, {
+            value: opts.fee,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(OracleProxyOpcodes.CancelUpdateCode, 32)
+                .endCell(),
+        })
+    }
+
+    async sendCancelTransferOwner(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            fee: bigint;
+        }) {
+        await provider.internal(via, {
+            value: opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.CancelTransferOwner, 32)
+                .endCell(),
+        })
+    }
+
+    async sendFinalized(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            fee: bigint;
+        }) {
+        await provider.internal(via, {
+            value: opts.fee,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(OracleProxyOpcodes.Finalized, 32)
                 .endCell(),
         })
     }
@@ -320,6 +371,7 @@ export class OracleProxy implements Contract {
                 .endCell()
         });
     }
+
     async getBalance(provider: ContractProvider, via: Sender) {
         let result = await provider.get("get_resume_balance", []);
         return result.stack.readBigNumber();
@@ -344,5 +396,10 @@ export class OracleProxy implements Contract {
     async getFee(provider: ContractProvider) {
         let result = await provider.get('get_current_fee', []);
         return result.stack.pop();
+    }
+
+    async getOwner(provider: ContractProvider) {
+        let result = await provider.get('get_current_owner', []);
+        return result.stack.readAddress();
     }
 }
