@@ -34,28 +34,41 @@
     return dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
 }
 
+;; Check whether the message has an expired timestamp. 
+() store_message_expiration_timestamp(int timestamp, int message_id) inline {
+    slice timestampKey = begin_cell().store_uint(timestamp, 64).store_int(message_id, 128).end_cell().begin_parse();
+    (slice storedTimeStampValue, int timestampValueFound) = dict_get?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
+    
+    ;; If it already exists, it means it is the second resubmission, and it needs to be overwritten with a new timestamp, 
+    if (timestampValueFound) {
+        (storage::messageRecordDicBucket,int deleteTimestampValueResult) = dict_delete?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
+    }
+
+    ;; and then the latest expiration time of the message is stored.
+    slice timestampValue = begin_cell().store_int(-1, 1).end_cell().begin_parse();
+    storage::messageRecordDicBucket = dict_set(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey, timestampValue);
+
+    clear_expired_message();
+}
+
 (int) store_message(int timestamp, int message_id, slice receiver) inline {
     load_data();
 
     slice messageKey = begin_cell().store_int(message_id, 128).end_cell().begin_parse();
     (slice storedMessageValue, int found) = dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
+
+    ;; If the message already exists, it will not be stored to prevent replay attacks.
     if (found) {
-        return -1;
+        return 0; 
     }
 
     slice messageValue = begin_cell().store_slice(receiver).end_cell().begin_parse();
     storage::usedMessages = dict_set(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey, messageValue);
 
-    slice timestampKey = begin_cell().store_uint(timestamp, 64).store_int(message_id, 128).end_cell().begin_parse();
-    (slice storedTimeStampValue, int timestampValueFound) = dict_get?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
-    if (timestampValueFound != 0) {
-        slice timestampValue = begin_cell().store_int(-1, 1).end_cell().begin_parse();
-        storage::messageRecordDicBucket = dict_set(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey, timestampValue);
-    }
+    store_message_expiration_timestamp(timestamp, message_id);
 
-
-    clear_expired_message();
     save_data();
-
-    return 0;
+   
+    ;; Return -1 if the storage is successful, return 0 if the storage fails
+    return -1;  
 }

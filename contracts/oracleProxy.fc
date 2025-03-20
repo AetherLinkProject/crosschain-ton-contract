@@ -45,7 +45,6 @@
 }
 
 () forward_message(slice sender, slice in_msg_body) impure inline_ref {
-    ;; check
     throw_unless(rsp::PermissionDenied, check_address_in_dic(storage::whiteOracleAddress, sender));
     
     slice context = in_msg_body~load_ref().begin_parse();
@@ -61,8 +60,8 @@
     
     context.end_parse();
 
-    int success = store_message(timestamp, messageId, receiver);
-    throw_unless(rsp::AlreadyRecord, success == 0);
+    int success = store_message(timestamp, messageId, receiver); 
+    throw_unless(rsp::AlreadyRecord, success != 0); ;; success == 0 => Failed to store message | success == -1  => Successfully stored message
 
     cell body = in_msg_body~load_ref();
     int reportHash = begin_cell()
