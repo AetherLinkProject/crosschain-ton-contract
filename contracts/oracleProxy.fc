@@ -226,17 +226,22 @@
     throw_unless(rsp::PermissionDenied, equal_slices(storedReceiver, sender));
 
     int timestamp = messageValue~load_uint(64);
-    delete_message_with_timestamp(messageId, timestamp);
-    delete_message(messageId);
+    ;; When deleting a message, the expiration time of the message is also deleted. 
+    ;; The expiration time of the message is recalculated based on the time of notifying the transaction.
+    int timestampDeleted = delete_message_with_timestamp(timestamp, messageId);
+    throw_unless(rsp::TimestampMessageDeletedFailed, timestampDeleted == -1);
+    int messageDeleted = delete_message(messageId);
+    throw_unless(rsp::MessageDeletedFailed, messageDeleted == -1);
 
-    builder logData = begin_cell()
+    cell logData = begin_cell()
         .store_int(messageId, 128)
         .store_slice(sender)
         .store_slice(my_address())  
         .store_int(now(), 64)
-        .store_int(delayTime, 32);
+        .store_int(delayTime, 32)
+        .end_cell();
 
-    emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
+    emit_log_simple(op::NotifyResendNeeded, logData, -1);
 
     save_data();
 }

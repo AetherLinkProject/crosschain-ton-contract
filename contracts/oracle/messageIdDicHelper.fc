@@ -13,7 +13,7 @@
 
 (int) delete_message_with_timestamp(int timestamp, int message_id) inline {
     slice timestampKey = begin_cell().store_uint(timestamp, 64).store_int(message_id, 128).end_cell().begin_parse();
-    (storage::messageRecordDicBucket,int deleted) = dict_delete?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
+    (storage::messageRecordDicBucket, int deleted) = dict_delete?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
 
     return deleted; 
 }
@@ -36,16 +36,14 @@
     }
 }
 
-(slice, int) find_message(int messageId){
-    slice messageKey = begin_cell().store_int(messageId, 128).end_cell().begin_parse();
+(slice, int) find_message(int message_id) inline {
+    slice messageKey = begin_cell().store_int(message_id, 128).end_cell().begin_parse();
     return dict_get?(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey);
 }
 
 ;; Check whether the message has an expired timestamp. 
-() store_message_expiration_timestamp(int timestamp, int message_id) inline {
+() store_message_expiration_timestamp(int timestamp, int message_id) impure inline {
     slice timestampKey = begin_cell().store_uint(timestamp, 64).store_int(message_id, 128).end_cell().begin_parse();
-    (slice storedTimeStampValue, int timestampValueFound) = dict_get?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey);
-    
     ;; Update to the latest expiration date
     slice timestampValue = begin_cell().store_int(-1, 1).end_cell().begin_parse();
     storage::messageRecordDicBucket = dict_set(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH, timestampKey, timestampValue);
@@ -64,13 +62,19 @@
         return 0; 
     }
 
-    slice messageValue = begin_cell().store_slice(receiver).store_uint(timestamp, 64).end_cell().begin_parse();
+    ;; Store the message and the receiver and expiration time at the same time
+    slice messageValue = begin_cell()
+        .store_slice(receiver)
+        .store_uint(timestamp, 64)
+        .end_cell()
+        .begin_parse();
+        
     storage::usedMessages = dict_set(storage::usedMessages, MESSAGE_KEY_LENGTH, messageKey, messageValue);
 
     store_message_expiration_timestamp(timestamp, message_id);
 
     save_data();
-   
+
     ;; Return -1 if the storage is successful, return 0 if the storage fails
     return -1;  
 }

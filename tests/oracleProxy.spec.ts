@@ -502,15 +502,81 @@ describe('oracle', () => {
 
     describe('notify resend', () => {
         it("resend", async () => {
+            await addWhiteWalletAddress(oracleProxy, deployer.getSender(), keyPairList);
             await addWhiteContractAddress(oracleProxy, deployer.getSender(), logicTest.address);
-            var result = await logicTest.sendResendMessage(deployer.getSender(), {
+
+            let sendData = beginCell()
+                .storeUint(Opcodes.increase, 32)
+                .storeUint(0, 64)
+                .storeUint(6, 32)
+                .endCell()
+
+            let messageId = BigInt(10);
+            const requestStartTime = BigInt(Math.floor(Date.now() / 1000))
+            let unsign_data = assemble_unsign_data(messageId, requestStartTime, oracleProxy.address, logicTest.address, sendData);
+            let hash = unsign_data.hash();
+
+            let signDic = Dictionary.empty<bigint, Cell>(Dictionary.Keys.BigInt(256), Dictionary.Values.Cell());
+            for (var i = 0; i < keyPairList.length; i++) {
+                let signData = sign(hash, keyPairList[i].secretKey);
+                let data = beginCell().storeBuffer(signData, signData.length).endCell();
+                signDic.set(BigInt(i), data);
+            }
+
+            const result = await oracleProxy.sendToTonContract(deployer.getSender(), {
+                messageId,
+                oracleAddress: oracleProxy.address,
+                receiver: logicTest.address,
+                timestamp: requestStartTime,
+                data: sendData,
+                multiSign: signDic,
+                amount: toNano('0.05')
+            });
+
+            expect(result.transactions).toHaveTransaction({
+                from: deployer.getSender().address,
+                to: oracleProxy.address,
+                success: true,
+                aborted: false,
+            })
+
+            var resendResult = await logicTest.sendResendMessage(deployer.getSender(), {
                 proxyAddr: oracleProxy.address,
-                messageId: BigInt(12),
+                messageId: messageId,
                 delayTime: 12,
                 fee: toNano("0.2"),
             });
-            
-            expect(result.transactions).toHaveTransaction({
+
+            expect(resendResult.transactions).toHaveTransaction({
+                from: logicTest.address,
+                to: oracleProxy.address,
+                success: true,
+                aborted: false,
+            })
+
+            const newRequestStartTime = BigInt(Math.floor(Date.now() / 1000))
+            let newUnsignData = assemble_unsign_data(messageId, newRequestStartTime, oracleProxy.address, logicTest.address, sendData);
+            let newHash = newUnsignData.hash();
+            let newSignDic = Dictionary.empty<bigint, Cell>(Dictionary.Keys.BigInt(256), Dictionary.Values.Cell());
+            for (var i = 0; i < keyPairList.length; i++) {
+                let signData = sign(newHash, keyPairList[i].secretKey);
+                let data = beginCell().storeBuffer(signData, signData.length).endCell();
+                newSignDic.set(BigInt(i), data);
+            }
+
+            const newResult = await oracleProxy.sendToTonContract(deployer.getSender(), {
+                messageId,
+                oracleAddress: oracleProxy.address,
+                receiver: logicTest.address,
+                timestamp: newRequestStartTime,
+                data: sendData,
+                multiSign: newSignDic,
+                amount: toNano('0.05')
+            });
+
+            expect(newResult.transactions).toHaveTransaction({
+                from: deployer.getSender().address,
+                to: oracleProxy.address,
                 success: true,
                 aborted: false,
             })
@@ -526,6 +592,8 @@ describe('oracle', () => {
             });
 
             expect(result.transactions).toHaveTransaction({
+                from: logicTest.address,
+                to: oracleProxy.address,
                 exitCode: 105,
                 success: false,
                 aborted: true,
@@ -542,6 +610,8 @@ describe('oracle', () => {
             });
 
             expect(result.transactions).toHaveTransaction({
+                from: logicTest.address,
+                to: oracleProxy.address,
                 exitCode: 110,
                 success: false,
                 aborted: true,

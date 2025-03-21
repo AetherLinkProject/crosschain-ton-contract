@@ -38,3 +38,5 @@ const rsp::MessageNotFound = 110;
 const rsp::ExpiredMessage = 111;
 const rsp::AlreadyRecord = 112;
 const rsp::InvalidCall = 113;
+const rsp::MessageDeletedFailed = 114;
+const rsp::TimestampMessageDeletedFailed = 115;
