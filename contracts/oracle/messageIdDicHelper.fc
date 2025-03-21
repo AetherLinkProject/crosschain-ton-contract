@@ -18,7 +18,7 @@
     return deleted; 
 }
 
-() clear_expired_message() inline {
+() clear_expired_message() impure inline {
     (slice key_slice, slice value, int flag) = dict_get_min?(storage::messageRecordDicBucket, TIMESTAMP_MESSAGE_KEY_LENGTH);
 
     while (flag) {

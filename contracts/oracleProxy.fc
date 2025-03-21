@@ -274,7 +274,7 @@
     save_data();
 }
 
-() init_update_contract_code(slice sender, slice in_msg_body) impure {
+() init_update_contract_code(slice sender, slice in_msg_body) impure inline {
     throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     (int end_owner, slice owner,int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
@@ -294,7 +294,7 @@
     save_data();
 }
 
-() cancel_update_contract_code(slice sender, slice in_msg_body) impure {
+() cancel_update_contract_code(slice sender, slice in_msg_body) impure inline {
     throw_unless(rsp::NotOwner, equal_slices(sender, storage::owner));
 
     ( int end_owner, slice owner, int end_code, _) = unpack_temp_upgrade(storage::tempUpgrade);
@@ -304,7 +304,7 @@
     save_data();
 }
 
-() finalize_upgrades() impure {
+() finalize_upgrades() impure inline {
     (int end_owner, slice new_owner, int end_code, cell new_code) = unpack_temp_upgrade(storage::tempUpgrade);
     throw_unless(rsp::InvalidCall, (end_code + end_owner) > 0); ;; make sure at least one upgrade process is in progress
 
