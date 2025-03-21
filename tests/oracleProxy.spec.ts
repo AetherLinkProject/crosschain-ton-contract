@@ -509,7 +509,11 @@ describe('oracle', () => {
                 delayTime: 12,
                 fee: toNano("0.2"),
             });
-            // console.log(result);
+            
+            expect(result.transactions).toHaveTransaction({
+                success: true,
+                aborted: false,
+            })
         });
 
         it("resend with delay time over a day", async () => {

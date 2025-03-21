@@ -219,11 +219,15 @@
     int maxDelaySeconds = 60 * 60 * 24;
     throw_unless(rsp::InputDataError, maxDelaySeconds > delayTime);
 
-    (slice receiver, int exists) = find_message(messageId);
+    (slice messageValue, int exists) = find_message(messageId);
     throw_unless(rsp::MessageNotFound, exists == -1);
 
-    slice storedReceiver = receiver~load_msg_addr();
+    slice storedReceiver = messageValue~load_msg_addr();
     throw_unless(rsp::PermissionDenied, equal_slices(storedReceiver, sender));
+
+    int timestamp = messageValue~load_uint(64);
+    delete_message_with_timestamp(messageId, timestamp);
+    delete_message(messageId);
 
     builder logData = begin_cell()
         .store_int(messageId, 128)
@@ -233,8 +237,6 @@
         .store_int(delayTime, 32);
 
     emit_log_simple(op::NotifyResendNeeded, logData.end_cell(), -1);
-
-    delete_message(messageId);
 
     save_data();
 }
