@@ -1,0 +1,142 @@
+#include "oracle/const.fc";
+#include "imports/stdlib.fc";
+
+const op::increase = "op::increase"c; ;; create an opcode from string using the "c" prefix, this results in 0x7e8764ef opcode in this case
+
+;; storage variables
+
+;; id is required to be able to create different instances of counters
+;; since addresses in TON depend on the initial state of the contract
+global int ctx_id;
+global int ctx_counter;
+global cell inputData;
+
+;; load_data populates storage variables using stored data
+() load_data() impure {
+    var ds = get_data().begin_parse();
+
+    ctx_id = ds~load_uint(32);
+    ctx_counter = ds~load_uint(32);
+    inputData = ds~load_ref();
+
+    ds.end_parse();
+}
+
+;; save_data stores storage variables as a cell into persistent storage
+() save_data() impure {
+    set_data(
+        begin_cell()
+            .store_uint(ctx_id, 32)
+            .store_uint(ctx_counter, 32)
+            .store_ref(inputData)
+            .end_cell()
+    );
+}
+
+(cell) assemble_cross_chain_message(int targetChainId, cell receiver, cell report, cell extraData) impure {
+    builder result = begin_cell()
+        .store_int(targetChainId,32)
+        .store_ref(receiver)
+        .store_ref(report);
+    if(~ extraData.null?()){
+        result = result.store_ref(extraData);
+        return result.end_cell();
+    }
+
+    return result.end_cell();
+}
+
+;; recv_internal is the main function of the contract and is called when it receives a message from other contracts
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) {
+        ;; ignore all empty messages
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) {
+        ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender = cs~load_msg_addr();
+    load_data(); ;; here we populate the storage variables
+
+    int op = in_msg_body~load_uint(32); ;; by convention, the first 32 bits of incoming message is the op
+    if (op == op::increase) {
+        int increase_by = in_msg_body~load_uint(32);
+        ctx_counter += increase_by;
+        save_data();
+        return ();
+    }
+
+    if (op == op::ResendTx) {
+        slice proxyAddr = in_msg_body~load_msg_addr();
+        int messageId = in_msg_body~load_int(128);
+        int delayTime = in_msg_body~load_int(32);
+
+        cell bodyCell = begin_cell().store_int(messageId, 128)
+            .store_int(1, 8)
+            .store_int(delayTime, 32)
+            .end_cell();
+
+        cell msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(proxyAddr)
+            .store_coins(15000000)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::ResendTx, 32)
+            .store_slice(bodyCell.begin_parse())
+            .end_cell();
+
+        send_raw_message(msg, 1);
+        return ();
+    }
+
+    if (op == op::ProxyTransactionToTon) {
+        inputData = begin_cell().store_slice(in_msg_body).end_cell();
+
+        return ();
+    }
+
+    if (op == op::ProxyTransactionToOtherChain) {
+        slice proxyAddr = in_msg_body~load_msg_addr();
+        int targetChainId = in_msg_body~load_uint(32);
+        cell receiver = in_msg_body~load_ref();
+        cell report = in_msg_body~load_ref();
+        cell extraData = in_msg_body~load_ref();
+
+        cell body = assemble_cross_chain_message(targetChainId, receiver, report, extraData);
+
+        cell msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(proxyAddr)
+            .store_coins(20000000)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::ProxyTransactionToOtherChain, 32)
+            .store_slice(body.begin_parse())
+            .end_cell();
+
+        send_raw_message(msg, 1);
+
+        return ();
+    }
+
+    throw(0xffff); ;; if the message contains an op that is not known to this contract, we throw
+}
+
+int get_counter() method_id {
+    load_data();
+    return ctx_counter;
+}
+
+cell get_input_data() method_id {
+    load_data();
+    return inputData;
+}
+
+int get_id() method_id {
+    load_data();
+    return ctx_id;
+}
